@@ -138,7 +138,7 @@ export class Room {
     if (typeof msg != 'string' || msg.length > MAX_CAR + 200) return;
     const now = Date.now(), r = this.rate.get(me.id) || { t: now, n: 0 }; if (now - r.t > 1000) { r.t = now; r.n = 0 } r.n++; this.rate.set(me.id, r); if (r.n > 40) return;
     let m; try { m = JSON.parse(msg) } catch (e) { return }
-    if (m.t == 's') { const p = Array.isArray(m.p) ? m.p.slice(0, 10).map(v => +(+v).toFixed(3)) : null; if (p && !p.every(Number.isFinite)) return; this.bcast({ t: 's', id: me.id, p }, ws); }
+    if (m.t == 's') { const p = Array.isArray(m.p) ? m.p.slice(0, 40).map(v => +(+v).toFixed(3)) : null; if (p && !p.every(Number.isFinite)) return; this.bcast({ t: 's', id: me.id, p }, ws); }
     else if (m.t == 'car') { const code = String(m.code || ''); if (!code.startsWith('BRCAR1.') || code.length > MAX_CAR) return;
       this.ctx.storage.sql.exec('INSERT OR REPLACE INTO cars VALUES(?,?)', me.id, code); this.bcast({ t: 'car', id: me.id, code }, ws); }
     else if (m.t == 'hi') { const players = this.socks().filter(w => w !== ws).map(w => { const i = this.info(w); const c = this.ctx.storage.sql.exec('SELECT code FROM cars WHERE id=?', i.id).toArray()[0]; return { id: i.id, nick: i.nick, car: c ? c.code : null }; });
