@@ -1,0 +1,9 @@
+{
+  "name": "blockracer-mp",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": { "wrangler": "^4" }
+}
