@@ -497,12 +497,13 @@ function buildCar(bl){const g=new T.Group(),ws=[],fl=[],ex=[];bl.forEach(b=>{con
 let blocks=[],hist=[];
 const cfg=(()=>{let c={};try{c=JSON.parse(localStorage.getItem('blockracer_cfg'))||{}}catch(e){}return{clr:+c.clr||0,ch:+c.ch||0,cz:+c.cz||0,sp:c.sp>0?+c.sp:1,dp:c.dp>0?+c.dp:1,dt:['a','r','f'].includes(c.dt)?c.dt:'a',red:c.red>=5000&&c.red<=9500?+c.red:7000,hp:c.hp>=60&&c.hp<=320?+c.hp:150,pk:c.pk>=40&&c.pk<=85?+c.pk:62,tb:c.tb>=.3&&c.tb<=1.6?+c.tb:.8,fd:c.fd>=3&&c.fd<=12?+c.fd:7.2,gr:Array.isArray(c.gr)&&c.gr.length>=2&&c.gr.length<=8&&c.gr.every(v=>v>=.4&&v<=5)?c.gr.map(Number):[3.2,2.2,1.55,1.15,.9]}})();
 const DTN={a:Lc('Полный'),r:Lc('Задний'),f:Lc('Передний')};
-function defCar(){const a=[],P=(x,y,z,t,c)=>a.push({x,y,z,t,c:c==null?0:c});
- for(let x=-1;x<=1;x++)for(let z=-2;z<=2;z++)P(x,0,z,(z==2&&x!=0)?'l':'b');
- [-2,2].forEach(x=>[-2,2].forEach(z=>P(x,0,z,'w')));
- P(0,1,-2,'e');P(-1,1,-2,'b');P(1,1,-2,'b');
- for(let x=-1;x<=1;x++){P(x,1,-1,x==0?'k':'g');P(x,1,0,'g');P(x,1,1,'b');P(x,1,2,'b')}
- for(let x=-1.25;x<=1.25;x+=.5)a.push({x,y:2,z:-2.25,t:'v',c:7,s:1,a:1,o:0,f:0});
+function defCar(){const a=[],P=(x,y,z,t,c)=>a.push({x,y,z,t,c:c==null?0:c,s:1});
+ for(let x=-1;x<=1;x+=.5)for(let z=-2.5;z<=2.5;z+=.5){P(x,0,z,'b');
+  P(x,.5,z,(z==2.5&&Math.abs(x)==1)?'l':(x==0&&z==-2)?'e':(x==0&&z==-1.5)?'k':'b');
+  if(z>=1.5)P(x,1,z,'b');else if(z>=-1.5)P(x,1,z,'g');else P(x,1,z,'b');
+  if(z>=-1&&z<=.5)P(x,1.5,z,'b');
+  if(z==-2.5)a.push({x,y:1.5,z,t:'v',c:7,s:1,a:1,o:0,f:0})}
+ [-2,2].forEach(x=>[-2,2].forEach(z=>a.push({x,y:0,z,t:'w',c:0})));
  return a}
 try{const s=localStorage.getItem('blockracer_car');if(s)blocks=JSON.parse(s)}catch(e){}
 blocks.forEach(b=>{if(b.t=='s'){b.t='v';b.a=1;b.o=0;b.f=0}});blocks=blocks.filter(b=>BT[b.t]);
@@ -526,10 +527,11 @@ const GBOX=new T.BoxGeometry(1.04,1.04,1.04),ghost=new T.Mesh(GBOX,new T.MeshBas
 const cgM=new T.Mesh(new T.SphereGeometry(.16,16,12),new T.MeshBasicMaterial({color:0xff3b6b,depthTest:false})),cgD=new T.Mesh(new T.CircleGeometry(.22,20).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0xff3b6b,transparent:true,opacity:.6}));cgM.renderOrder=9;editG.add(cgM,cgD);
 let editCar=null,tool='add',ty='b',ci=0,sym=true,mode='edit',miniOn=true,wr=.5,ww=.8,cfgOpen=false;
 function liftOf(){let l=1e9;const wb=blocks.filter(k=>k.t=='w');if(wb.length)wb.forEach(k=>l=Math.min(l,k.y+Math.min(0,.5-(k.r||.5))));else blocks.forEach(k=>l=Math.min(l,k.y));return l==1e9?0:l}
-function cgOf(){let m=0,x=0,y=0,z=0;blocks.forEach(b=>{const r=b.r||.5,w=b.t=='w'?4*r*r*(b.wd||.8):BT[b.t].m*(b.s?.125:1)*(b.a?.4:1),cy=b.t=='w'?b.y+.5+(r<.5?r-.5:0):b.y+SZ(b)/2+cfg.clr;m+=w;x+=w*b.x;y+=w*cy;z+=w*b.z});return m?{x:x/m,y:y/m,z:z/m}:{x:0,y:.5,z:0}}
+const FN=t=>t=='e'||t=='r'||t=='k'||t=='n';
+function cgOf(){let m=0,x=0,y=0,z=0;blocks.forEach(b=>{const r=b.r||.5,w=b.t=='w'?4*r*r*(b.wd||.8):BT[b.t].m*(b.s&&!FN(b.t)?.125:1)*(b.a?.4:1),cy=b.t=='w'?b.y+.5+(r<.5?r-.5:0):b.y+SZ(b)/2+cfg.clr;m+=w;x+=w*b.x;y+=w*cy;z+=w*b.z});return m?{x:x/m,y:y/m,z:z/m}:{x:0,y:.5,z:0}}
 function balance(){const wb=blocks.filter(k=>k.t=='w');if(!wb.length)return null;const zc=wb.reduce((p,k)=>p+k.z,0)/wb.length,F=wb.filter(k=>k.z>zc+.01),Rr=wb.filter(k=>k.z<zc-.01);if(!F.length||!Rr.length)return null;
  const mean=l=>l.reduce((p,k)=>p+k.z,0)/l.length,fz=mean(F),rz=mean(Rr),fr=Math.max(0,Math.min(1,(cgOf().z+cfg.cz-rz)/(fz-rz)));return{front:fr,f:(fr-.5)*2}}
-const stats=()=>{const s={m:0,e:0,w:0,s:0,r:0,k:0,n:0,mini:0,a:0};blocks.forEach(b=>{const v=b.s?.125:1;if(b.s)s.mini++;s.m+=b.t=='w'?4*(b.r||.5)**2*(b.wd||.8):BT[b.t].m*v*(b.a?.4:1);if(b.t=='w')s.w++;else if(b.t=='e'||b.t=='r'||b.t=='k'||b.t=='n')s[b.t]+=v;if(b.a)s.a+=b.s?.25:1});return s};
+const stats=()=>{const s={m:0,e:0,w:0,s:0,r:0,k:0,n:0,mini:0,a:0};blocks.forEach(b=>{const v=b.s?.125:1;if(b.s)s.mini++;s.m+=b.t=='w'?4*(b.r||.5)**2*(b.wd||.8):BT[b.t].m*(FN(b.t)?1:v)*(b.a?.4:1);if(b.t=='w')s.w++;else if(FN(b.t))s[b.t]+=1;if(b.a)s.a+=b.s?.25:1});return s};
 function refresh(){if(editCar)editG.remove(editCar.g);editCar=buildCar(blocks);editG.add(editCar.g);
  const s=stats();let w='';if(!s.w)w+=Lc(' ⚠ нет колёс');if(!s.e)w+=Lc(' ⚠ нет мотора');if(s.e&&s.k<.1)w+=Lc(' ℹ нет коробки 🎚️ — одна передача');
  let cgTxt='';if(blocks.length){const c=cgOf(),cy=c.y+cfg.ch,cgH=Math.max(.1,cy-liftOf()),bal=balance();cgTxt=` · ${Lc('ЦТ: высота')} <b>${cgH.toFixed(2)}</b>${bal?` · ${Lc('перед/зад')} <b>${Math.round(bal.front*100)}/${Math.round(100-bal.front*100)}</b>`:''}`;cgM.visible=cgD.visible=true;cgM.position.set(c.x,cy,c.z+cfg.cz);cgD.position.set(c.x,.04,c.z+cfg.cz)}else cgM.visible=cgD.visible=false;
@@ -554,7 +556,7 @@ function target(e){const r=cv.getBoundingClientRect();RC.setFromCamera({x:(e.cli
   const sg=Math.sign(d[ax]||1);q[ax]=c3[ks.indexOf(ax)]+sg*(h2+.01);
   return{b,q,n:{ax,sg,pl:c3[ks.indexOf(ax)]+sg*h2}}}return null}
 const hf=v=>Math.round(v*2)/2;
-const FULL=t=>t=='w'||t=='e'||t=='k'||t=='n'||t=='r';
+const FULL=t=>t=='w';
 /* единая сетка ½ с центральной клеткой: центры блоков по X/Z — кратны 0,5 (есть клетка ровно на оси) */
 const L5=v=>Math.round(v*2)/2,Y5=v=>Math.floor(v*2+1e-9)/2+.25,OUT=(v,sg)=>sg>0?Math.ceil(v*2-1e-6)/2:Math.floor(v*2+1e-6)/2;
 function cellFor(t){const c={},big=FULL(ty),h=big?.5:.25;
