@@ -26,7 +26,7 @@ export default {
     if (req.method == 'OPTIONS') return new Response(null, { headers: CORS });
     if (url.pathname.startsWith('/api/')) {
       const op = url.pathname.slice(5);
-      if (!['register', 'login', 'logout', 'me', 'rooms', 'create', 'joincheck'].includes(op)) return J({ error: 'not_found' }, 404);
+      if (!['register', 'login', 'logout', 'me', 'rooms', 'create', 'joincheck', 'save', 'load'].includes(op)) return J({ error: 'not_found' }, 404);
       let body = {}; if (req.method == 'POST') { try { body = await req.json() } catch (e) { return J({ error: 'bad_json' }, 400) } }
       body.ip = req.headers.get('cf-connecting-ip') || '';
       const r = await hubCall(env, op, body);
@@ -53,6 +53,7 @@ export class Hub {
     sql.exec('CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, nick TEXT, exp INTEGER)');
     sql.exec('CREATE TABLE IF NOT EXISTS rooms(id TEXT PRIMARY KEY, name TEXT, host TEXT, pws TEXT, pwh TEXT, n INTEGER, created INTEGER)');
     sql.exec('CREATE TABLE IF NOT EXISTS fails(k TEXT, t INTEGER)');
+    sql.exec('CREATE TABLE IF NOT EXISTS saves(nick TEXT PRIMARY KEY COLLATE NOCASE, data TEXT, t INTEGER)');
   }
   q(s, ...a) { return this.ctx.storage.sql.exec(s, ...a).toArray(); }
   nickOf(token) { if (typeof token != 'string' || token.length != 64) return null; const r = this.q('SELECT nick,exp FROM sessions WHERE token=?', token)[0]; if (!r || r.exp < Date.now()) return null; return r.nick; }
@@ -61,6 +62,17 @@ export class Hub {
   async fetch(req) {
     const op = new URL(req.url).pathname.slice(1); let b = {}; try { b = await req.json() } catch (e) { }
     try { return Response.json(await this[op]?.(b) ?? { error: 'not_found' }) } catch (e) { return Response.json({ error: 'server', msg: String(e && e.message || e) }) }
+  }
+  // облачное сохранение карьеры (одна запись на аккаунт)
+  async save(b) {
+    const nick = this.nickOf(b.token); if (!nick) return { error: 'auth' };
+    const d = String(b.data || ''); if (!d.startsWith('BRSAVE1.') || d.length > 900000) return { error: 'bad_save' };
+    const last = this.q('SELECT t FROM saves WHERE nick=?', nick)[0]; if (last && Date.now() - last.t < 1500) return { error: 'too_fast' };
+    const t = Date.now(); this.q('INSERT OR REPLACE INTO saves VALUES(?,?,?)', nick, d, t); return { ok: true, t };
+  }
+  async load(b) {
+    const nick = this.nickOf(b.token); if (!nick) return { error: 'auth' };
+    const r = this.q('SELECT data,t FROM saves WHERE nick=?', nick)[0]; return r ? { data: r.data, t: r.t } : { data: null };
   }
   async register(b) {
     const nick = String(b.nick || '').trim(), pw = String(b.password || '');
