@@ -1,13 +1,14 @@
 {
   "name": "blockracer-desktop",
   "productName": "Block Racer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Block Racer PC",
   "main": "main.js",
-  "author": { "name": "Block Racer" },
+  "homepage": "https://blockracer-mp.daviddavidov836.workers.dev/",
+  "author": { "name": "Block Racer", "email": "blockracer@users.noreply.github.com" },
   "license": "UNLICENSED",
   "repository": { "type": "git", "url": "https://github.com/daviddavidov836-rgb/blockracer-mp.git" },
-  "scripts": { "start": "electron .", "dist": "electron-builder --win" },
+  "scripts": { "start": "electron .", "dist": "electron-builder" },
   "dependencies": { "electron-updater": "6.1.8" },
   "devDependencies": { "electron": "31.3.1", "electron-builder": "24.13.3" },
   "build": {
@@ -18,10 +19,17 @@
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }],
       "icon": "build/icon.png",
-         "artifactName": "BlockRacer-${version}-setup.${ext}"
+      "artifactName": "BlockRacer-${version}-setup.${ext}"
     },
     "nsis": { "oneClick": true, "perMachine": false, "createDesktopShortcut": true, "shortcutName": "Block Racer" },
     "portable": { "artifactName": "BlockRacer-${version}-portable.exe" },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }, { "target": "deb", "arch": ["x64"] }],
+      "icon": "build/icon.png",
+      "category": "Game",
+      "maintainer": "Block Racer <blockracer@users.noreply.github.com>",
+      "artifactName": "BlockRacer-${version}-linux.${ext}"
+    },
     "publish": [{ "provider": "github", "owner": "daviddavidov836-rgb", "repo": "blockracer-mp", "releaseType": "release" }]
   }
 }
