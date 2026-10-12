@@ -1,10 +1,8 @@
-# Сборка ПК-версии (Windows .exe) — запускается вручную: Actions → «Desktop build» → Run workflow
-# или автоматически при изменении папки desktop/. Готовые файлы появятся в разделе Releases.
 name: Desktop build
 on:
   workflow_dispatch:
   push:
-    paths: ['desktop/**']
+    paths: ['desktop/**', '.github/workflows/desktop.yml']
 permissions:
   contents: write
 jobs:
@@ -12,13 +10,33 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
+        shell: bash
         working-directory: desktop
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-      - run: npx electron-builder --win --publish always -c.publish.provider=github -c.publish.owner=${{ github.repository_owner }} -c.publish.repo=${{ github.event.repository.name }} -c.publish.releaseType=release
+      - name: Install
+        run: npm install --no-audit --no-fund 2>&1 | tee ../build-log.txt; exit ${PIPESTATUS[0]}
+      - name: Build exe
+        run: |
+          npx electron-builder --win --publish always \
+            -c.publish.provider=github \
+            -c.publish.owner=${{ github.repository_owner }} \
+            -c.publish.repo=${{ github.event.repository.name }} \
+            -c.publish.releaseType=release 2>&1 | tee -a ../build-log.txt; exit ${PIPESTATUS[0]}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Save log on failure
+        if: failure()
+        working-directory: .
+        run: |
+          git config user.name "build-bot"; git config user.email "build-bot@users.noreply.github.com"
+          cp build-log.txt /tmp/build-log.txt 2>/dev/null || echo "no log" > /tmp/build-log.txt
+          git checkout --orphan build-logs
+          git rm -rf --cached . >/dev/null
+          cp /tmp/build-log.txt build-log.txt
+          git add build-log.txt
+          git commit -m "build log ${{ github.run_number }}"
+          git push -f origin build-logs
