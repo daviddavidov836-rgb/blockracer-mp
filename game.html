@@ -2185,7 +2185,8 @@ const CITY=(()=>{
    const cl=(v2,a,b)=>Math.max(a,Math.min(b,v2));
    if(Math.abs(x-cx)<Math.abs(z-cz)){const s=Math.cos(psi||0)>=0?1:-1;return{x:cx-s*2.5,z:cl(z,tz(0),tz(TNZ)),a:s>0?0:Math.PI}}
    const s=Math.sin(psi||0)>=0?1:-1;return{x:cl(x,tx(0),TXE+30),z:cz+s*2.5,a:s>0?Math.PI/2:-Math.PI/2}}
-  const at=f=>{const s=f*LEN;let i=0;while(i<NA-1&&SS[i]<s)i++;return{x:MCX+PTH[i][0],z:MCZ+PTH[i][1],y:HP[i]}},atB=f=>{const s=SS[NS]+f*LENB;let i=NS;while(i<NB-1&&SS[i]<s)i++;return{x:MCX+PTH[i][0],z:MCZ+PTH[i][1],y:HP[i]}};
+  const at=f=>{const s=f*LEN;let i=0;while(i<NA-1&&SS[i]<s)i++;return{x:MCX+PTH[i][0],z:MCZ+PTH[i][1],y:HP[i],i}},atB=f=>{const s=SS[NS]+f*LENB;let i=NS;while(i<NB-1&&SS[i]<s)i++;return{x:MCX+PTH[i][0],z:MCZ+PTH[i][1],y:HP[i],i}};
+  const nearIdx=(x,z)=>{const u=x-MCX,v=z-MCZ;let bi=0,bd=1e9;for(let i=0;i<NP;i+=2){const d=Math.hypot(PTH[i][0]-u,PTH[i][1]-v);if(d<bd){bd=d;bi=i}}return{i:bi,d:bd}},pt=i=>{i=Math.max(0,Math.min(NP-1,i));return{x:MCX+PTH[i][0],z:MCZ+PTH[i][1]}};
   /* --- графика (лениво) --- */
   let grp=null;
   function roof(g,x0,x1,z0,z1,y,rh,col){// вальмовая крыша с выносом
@@ -2246,10 +2247,11 @@ const CITY=(()=>{
    // электрические столбы с проводами вдоль улиц (узнаваемый вид японских улиц)
    const pole=(x,z,ax)=>{dt.box(x-.16,x+.16,0,9,z-.16,z+.16,0x8f949c,false);if(ax)dt.box(x-.06,x+.06,8.2,8.35,z-1.3,z+1.3,0x5a5f68,false);else dt.box(x-1.3,x+1.3,8.2,8.35,z-.06,z+.06,0x5a5f68,false);dt.box(x-.35,x+.35,6.6,7.6,z-.35,z+.35,0x7d838e,false)};
    const wire=(a,b,o)=>{const ax=a[0],az=a[1],bx=b[0],bz=b[1],mx=(ax+bx)/2,mz=(az+bz)/2;[[-1],[1]].forEach(([s])=>{const ox=o[0]*s,oz=o[1]*s;wr.push(ax+ox,8.3,az+oz,mx+ox,7.6,mz+oz,mx+ox,7.6,mz+oz,bx+ox,8.3,bz+oz)})};
-   for(let j=0;j<=TNZ;j++){let pr=null;const z=tz(j)+TW/2+1.2;for(let x=tx(0)+4;x<=TXE;x+=24){pole(x,z,true);if(pr)wire(pr,[x,z],[0,1.1]);pr=[x,z]}}
-   for(let i=0;i<=TNX;i++){let pr=null;const x=tx(i)-TW/2-1.2;for(let z=tz(0)+4;z<=tz(TNZ);z+=24){pole(x,z,false);if(pr)wire(pr,[x,z],[1.1,0]);pr=[x,z]}}
+   const offX=x=>{for(let i=0;i<=TNX;i++)if(Math.abs(x-tx(i))<TW/2+2.5)return true;return false},offZ=z=>{for(let j=0;j<=TNZ;j++)if(Math.abs(z-tz(j))<TW/2+2.5)return true;return false};
+   for(let j=0;j<=TNZ;j++){let pr=null;const z=tz(j)+TW/2+1.2;for(let x=tx(0)+TW/2+6;x<=TXE;x+=31){if(offX(x)){pr=null;continue}pole(x,z,true);if(pr)wire(pr,[x,z],[0,1.1]);pr=[x,z]}}
+   for(let i=0;i<=TNX;i+=2){let pr=null;const x=tx(i)-TW/2-1.2;for(let z=tz(0)+TW/2+6;z<=tz(TNZ);z+=31){if(offZ(z)){pr=null;continue}pole(x,z,false);if(pr)wire(pr,[x,z],[1.1,0]);pr=[x,z]}}
    // красные бумажные фонари вдоль главной улицы
-   for(let x=tx(0);x<TXE;x+=10)[-1,1].forEach(sd=>{const z=ZB+sd*(TW/2+.8);dt.box(x-.07,x+.07,0,4,z-.07,z+.07,0x2f2a26,false);dt.box(x-.35,x+.35,3.2,4,z-.35,z+.35,0xe0402e,false)});
+   for(let x=tx(0);x<TXE;x+=10)if(!offX(x))[-1,1].forEach(sd=>{const z=ZB+sd*(TW/2+.8);dt.box(x-.07,x+.07,0,4,z-.07,z+.07,0x2f2a26,false);dt.box(x-.35,x+.35,3.2,4,z-.35,z+.35,0xe0402e,false)});
    // ворота-тории у въезда с моста и табличка
    torii(dt,XB1+10,ZB,BW*2-2,9,false);
    // край острова: отбойник
@@ -2295,7 +2297,7 @@ const CITY=(()=>{
    x.fillRect(MX(X0),MZ(ZB-BW),(MCX-GR-X0)/MS,2*BW/MS);LT.forEach(L=>{x.fillStyle=L.kind=='garden'?'#d98fb0':'#8a7f72';L.b.forEach(b=>x.fillRect(MX(b.x0),MZ(b.z0),(b.x1-b.x0)/MS,(b.z1-b.z0)/MS))});
    const g=x.createRadialGradient(MX(MCX),MZ(MCZ),0,MX(MCX),MZ(MCZ),RM/MS);g.addColorStop(0,'#9aa486');g.addColorStop(1,'rgba(79,126,72,0)');x.fillStyle=g;x.beginPath();x.arc(MX(MCX),MZ(MCZ),RM/MS,0,7);x.fill();
    x.strokeStyle='#4a4f58';x.lineWidth=12/MS;x.lineJoin='round';x.beginPath();PTH.forEach((p,i)=>{const X=MX(MCX+p[0]),Z=MZ(MCZ+p[1]);if(i)x.lineTo(X,Z);else x.moveTo(X,Z)});x.stroke()}
-  return{h,surf,near,at,atB,stream,map,init,LENB,X0,X1,Z0,Z1,TX0,TXE,tx,tz,TNX,TNZ,LEN,TOP,MCX,MCZ,get built(){return !!grp},PTH,HP}})();
+  return{h,surf,near,at,atB,nearIdx,pt,stream,map,init,LENB,X0,X1,Z0,Z1,TX0,TXE,tx,tz,TNX,TNZ,LEN,TOP,MCX,MCZ,get built(){return !!grp},PTH,HP}})();
  /* ---- ГРАФ ДОРОГ: узлы на перекрёстках, рёбра вдоль улиц, полосы (правостороннее движение) ---- */
  const NODES=[],EDGES=[];const nid=(i,j)=>j*(N+1)+i;
  for(let j=0;j<=N;j++)for(let i=0;i<=N;i++)NODES.push({i,j,x:LX(i),z:LX(j),e:[]});
@@ -2332,11 +2334,11 @@ const CITY=(()=>{
    const gold=+(len/17.5+pts.length*1.2).toFixed(1),silver=+(len/14+pts.length*1.6).toFixed(1),bronze=+(len/11.2+pts.length*2).toFixed(1);
    L.push({id:'c'+(k+1),n,t,s,pts,len,med:[bronze,silver,gold],lim:+(bronze*1.3).toFixed(1),rw:Math.round(110+len*.22)})});return L})();
  /* задания второго острова: виртуальные узлы (без рёбер — стрелка ведёт напрямую) */
- (function(){const vn=(x,z,y)=>{NODES.push({i:-1,j:-1,x,z,y:y||0,e:[],v:1});return NODES.length-1};const mk=(id,n,t,pts,len)=>{const gold=+(len/17.5+pts.length*1.2).toFixed(1),silver=+(len/14+pts.length*1.6).toFixed(1),bronze=+(len/11.2+pts.length*2).toFixed(1);MIS.push({id,n,t,s:pts[0],pts:pts.slice(1),len,med:[bronze,silver,gold],lim:+(bronze*1.3).toFixed(1),rw:Math.round(160+len*.26)})};
-  const up=[0,.2,.4,.6,.8,1].map(f=>{const q=J.at(f);return vn(q.x,q.z,q.y)});mk('j1','Тоге: подъём','cp',up,J.LEN);
-  const dn=[0,.25,.5,.75,1].map(f=>{const q=J.atB(f);return vn(q.x,q.z,q.y)});mk('j2','Тоге: спуск','cp',dn,J.LENB);
-  const T1=[[1,1],[4,1],[4,3],[1,3],[2,2],[0,4]].map(([i,j])=>vn(J.tx(i),J.tz(j)));let L1=0;for(let k=1;k<T1.length;k++)L1+=Math.abs(NODES[T1[k]].x-NODES[T1[k-1]].x)+Math.abs(NODES[T1[k]].z-NODES[T1[k-1]].z);mk('j3','Улочки Сакуры','cp',T1,L1);
-  const c0=nid(N/2,N/2),b0=nid(N,8),bm=vn((XB0+XB1)/2,ZB),jt=vn(J.tx(2),ZB);mk('j4','Через мост в Сакуру','cp',[c0,b0,bm,jt],(NODES[b0].x-NODES[c0].x)+Math.abs(ZB-NODES[c0].z)+(J.tx(2)-NODES[b0].x))})();
+ (function(){const vn=(x,z,y,pi)=>{NODES.push({i:-1,j:-1,x,z,y:y||0,e:[],v:1,pi});return NODES.length-1};const mk=(id,n,t,pts,len)=>{const gold=+(len/17.5+pts.length*1.2).toFixed(1),silver=+(len/14+pts.length*1.6).toFixed(1),bronze=+(len/11.2+pts.length*2).toFixed(1);MIS.push({id,n,t,s:pts[0],pts:pts.slice(1),len,med:[bronze,silver,gold],lim:+(bronze*1.3).toFixed(1),rw:Math.round(160+len*.26)})};
+  const up=[0,.2,.4,.6,.8,1].map(f=>{const q=J.at(f);return vn(q.x,q.z,q.y,q.i)});mk('j1','Тоге: подъём','cp',up,J.LEN);
+  const dn=[0,.25,.5,.75,1].map(f=>{const q=J.atB(f);return vn(q.x,q.z,q.y,q.i)});mk('j2','Тоге: спуск','cp',dn,J.LENB);
+  const T1=[[1,1],[4,1],[4,3],[1,3],[2,2],[0,4]].map(([i,j])=>jid(i,j));let L1=0;for(let k=1;k<T1.length;k++)L1+=Math.abs(NODES[T1[k]].x-NODES[T1[k-1]].x)+Math.abs(NODES[T1[k]].z-NODES[T1[k-1]].z);mk('j3','Улочки Сакуры','cp',T1,L1);
+  const c0=nid(N/2,N/2),b0=nid(N,8),bm=vn((XB0+XB1)/2,ZB,BH),jt=jid(2,2);mk('j4','Через мост в Сакуру','cp',[c0,b0,bm,jt],(NODES[b0].x-NODES[c0].x)+Math.abs(ZB-NODES[c0].z)+(J.tx(2)-NODES[b0].x))})();
  /* ---- графика ---- */
  const G=new T.Group();G.visible=false;
  /* фасады: бетон с окнами (часть окон светится), стеклянные башни; океан с рябью */
@@ -2485,17 +2487,25 @@ const CITY=(()=>{
  const gEl=(()=>{try{const d=document.createElement('div');d.id='carw';d.innerHTML='<svg viewBox="0 0 64 64"><path d="M32 6 L52 44 L32 35 L12 44 Z" fill="#ffc83a" stroke="#1a1206" stroke-width="3" stroke-linejoin="round"/></svg><b></b>';($('hud')||document.body).appendChild(d);return d}catch(e){return null}})();
  /* навигация по улицам: следующая точка маршрута (узел), куда ехать — пересчёт раз в 0.4 с */
  let nav={t:0,wp:null,path:null};
- function navUpd(c,goal){nav.t=.4;const st=nearNode(c.x,c.z),r=route(st,goal);let wp=goal,path=r.nodes;
-  if(path.length>1){const a=NODES[path[0]],b=NODES[path[1]],da=Math.hypot(c.x-a.x,c.z-a.z),db=Math.hypot(c.x-b.x,c.z-b.z),ab=Math.hypot(a.x-b.x,a.z-b.z);
-   // если уже проехали ближайший перекрёсток в нужную сторону — целимся сразу в следующий
-   wp=(da<10||db<ab-2)?path[1]:path[0];if(wp==path[1])path=path.slice(1)}else if(path.length==1)wp=path[0];
-  nav.wp=wp;nav.path=path}
+ /* навигация: ближайшее ребро графа → выбираем конец ребра, через который путь короче (с небольшим «гистерезисом», без мигания);
+    на серпантине — точка на дороге метров на 30 вперёд к цели; виртуальные точки — к ближайшему узлу сети, потом напрямую */
+ function nearEdge(x,z){let be=-1,bt=0,bd=1e9;for(const E of EDGES){const A=NODES[E.a],B=NODES[E.b],dx=B.x-A.x,dz=B.z-A.z,L2=dx*dx+dz*dz||1;let t=((x-A.x)*dx+(z-A.z)*dz)/L2;t=t<0?0:t>1?1:t;const d=Math.hypot(x-A.x-dx*t,z-A.z-dz*t);if(d<bd){bd=d;be=E.id;bt=t}}return{e:be,t:bt,d:bd}}
+ function netNode(n){const G=NODES[n];if(G.e.length)return n;let bi=n,bd=1e9;NODES.forEach((q,k)=>{if(!q.e.length)return;const d=Math.hypot(q.x-G.x,q.z-G.z);if(d<bd){bd=d;bi=k}});return bi}
+ function navUpd(c,goal){nav.t=.35;const G=NODES[goal];nav.path=null;
+  if(G.pi!=null){const q=J.nearIdx(c.x,c.z);if(q.d<25){const st=Math.sign(G.pi-q.i)||1,k=q.i+st*Math.min(Math.abs(G.pi-q.i),22);nav.pt=J.pt(k);return}}
+  const ne=nearEdge(c.x,c.z);if(ne.e<0||ne.d>45){nav.pt={x:G.x,z:G.z};return}
+  const tg=netNode(goal),E=EDGES[ne.e],ra=route(E.a,tg),rb=route(E.b,tg);let da=ne.t*E.len+ra.len,db=(1-ne.t)*E.len+rb.len;
+  if(nav.side==='a')da-=15;if(nav.side==='b')db-=15;
+  const useA=da<=db;nav.side=useA?'a':'b';let path=(useA?ra:rb).nodes;
+  const n0=NODES[path[0]];if(Math.hypot(n0.x-c.x,n0.z-c.z)<12&&path.length>1)path=path.slice(1);
+  if(tg!==goal){const n1=NODES[path[0]];if(path.length<=1&&Math.hypot(n1.x-c.x,n1.z-c.z)<20){nav.pt={x:G.x,z:G.z};return}path=path.concat([goal])}
+  nav.path=path;const w=NODES[path[0]];nav.pt={x:w.x,z:w.z}}
  const fmt=t=>Math.floor(t/60)+':'+(t%60).toFixed(1).padStart(4,'0');
  function enter(){TR.reload();active=true;G.visible=true;run=null;near=null;stream(0,0,true);if(mapEl)mapEl.style.display='block'}
  function leave(){active=false;G.visible=false;run=null;tgt.visible=arrow.visible=false;if(mapEl)mapEl.style.display='none';if(gEl)gEl.style.display='none';if(misEl){misEl.innerHTML='';misEl._mode='';misEl.className='';misEl._h=null;misEl.style.display='none'}TR.clear()}
  function pose(c){if(run&&run.fail==null&&run.k>0){const p=NODES[run.list[run.k-1]],q=NODES[run.list[run.k]];return{x:p.x,z:p.z,a:Math.atan2(q.x-p.x,q.z-p.z)}}
   if(c&&isFinite(c.x)){const r=nearRoad(c.x,c.z,c.psi);return r}const n=NODES[nid(N/2,N/2)];return{x:n.x-2.5,z:n.z+40,a:Math.PI}}
- function startMis(m){const pts=[m.s].concat(m.pts);run={m,list:pts,k:1,t:0,fail:null};nav.goal=null;const n=NODES[m.s],r0=route(m.s,pts[1]).nodes,q=NODES[r0.length>1?r0[1]:pts[1]];
+ function startMis(m){const pts=[m.s].concat(m.pts);run={m,list:pts,k:1,t:0,fail:null};nav.goal=null;nav.ang=null;nav.side=null;nav.pt=null;const n=NODES[m.s],r0=route(m.s,pts[1]).nodes,q=NODES[r0.length>1?r0[1]:pts[1]];
   if(car)Object.assign(car,{x:n.x,z:n.z,y:h(n.x,n.z)+.3,vx:0,vz:0,vy:0,psi:Math.atan2(q.x-n.x,q.z-n.z),yr:0});car.camA=car.psi;SND.ui('ok');toast('🏁 '+Lc(m.n))}
  function stopMis(q){run=null;tgt.visible=false;arrow.visible=false;if(gEl)gEl.style.display='none';if(misEl){misEl._mode='';misEl.className='';misEl._h=null;misEl.style.display='none'}if(!q)SND.ui('del')}
  function medalOf(m,t){return t<=m.med[2]?3:t<=m.med[1]?2:t<=m.med[0]?1:0}
@@ -2510,7 +2520,7 @@ const CITY=(()=>{
   mapT-=dt;if(mapT<=0){mapT=1/15;drawMap(c)}
   let html='';
   if(run){run.t+=dt;const goal=run.list[run.k],p=NODES[goal],d=Math.hypot(c.x-p.x,c.z-p.z);tgt.visible=true;tgt.position.set(p.x,p.y||0,p.z);
-   nav.t-=dt;if(nav.t<=0||nav.goal!==goal){nav.goal=goal;navUpd(c,goal)}const w=NODES[nav.wp==null?goal:nav.wp],ang=Math.atan2(w.x-c.x,w.z-c.z);
+   nav.t-=dt;if(nav.t<=0||nav.goal!==goal){if(nav.goal!==goal)nav.side=null;nav.goal=goal;navUpd(c,goal)}const w=nav.pt||p,ang0=Math.atan2(w.x-c.x,w.z-c.z);if(nav.ang==null)nav.ang=ang0;{let dA=ang0-nav.ang;while(dA>Math.PI)dA-=2*Math.PI;while(dA<-Math.PI)dA+=2*Math.PI;nav.ang+=dA*Math.min(1,dt*7)}const ang=nav.ang;
    arrow.visible=true;arrow.position.set(c.x+Math.sin(c.psi)*5,c.y+2.2,c.z+Math.cos(c.psi)*5);arrow.rotation.set(0,ang,0);
    if(gEl){gEl.style.display='flex';const sv=gEl.querySelector&&gEl.querySelector('svg'),lb=gEl.querySelector&&gEl.querySelector('b'),rel=-(ang-c.psi)*180/Math.PI;if(sv&&sv.style)sv.style.transform='rotate('+rel.toFixed(1)+'deg)';const dt2=Math.round(d)+' '+Lc('м');if(lb&&gEl._d!==dt2){gEl._d=dt2;lb.textContent=dt2}}
    if(d<9){run.k++;SND.ui('ok');if(run.k>=run.list.length){finish();return}}
@@ -2522,8 +2532,10 @@ const CITY=(()=>{
   if(misEl&&misEl._mode==='run'){misEl._mode='';misEl.className='';misEl._h=null}if(gEl)gEl.style.display='none';
   {near=null;for(let k=0;k<MIS.length;k++){const n=NODES[MIS[k].s];if(Math.hypot(c.x-n.x,c.z-n.z)<12){near=MIS[k];break}}
    if(near){const S=CR.S,b=S&&S.city&&S.city.best[near.id],md=(S&&S.city&&S.city.medal[near.id])||0;
-    html=`<b>${near.t=='cp'?'🏁':'📦'} ${H_(Lc(near.n))}</b><small>${near.t=='cp'?Lc('Чекпоинты')+': '+near.pts.length:Lc('Доставка')} · ${(near.len/1000).toFixed(1)} ${Lc('км')} · ${['','🥉','🥈','🥇'][md]} ${b?Lc('рекорд')+' '+fmt(b):''}</small><small>🥇 ${fmt(near.med[2])} · 🥈 ${fmt(near.med[1])} · 🥉 ${fmt(near.med[0])}</small><button data-ms class="pri">▶ ${Lc('Начать')}</button>`}}
+    html=`<b>${near.t=='cp'?'🏁':'📦'} ${H_(Lc(near.n))}</b><small>${near.t=='cp'?Lc('Чекпоинты')+': '+near.pts.length:Lc('Доставка')} · ${(near.len/1000).toFixed(1)} ${Lc('км')} · ${['','🥉','🥈','🥇'][md]} ${b?Lc('рекорд')+' '+fmt(b):''}</small><small>🥇 ${fmt(near.med[2])} · 🥈 ${fmt(near.med[1])} · 🥉 ${fmt(near.med[0])}</small><button data-ms class="pri">▶ ${Lc('Начать')}${PCK?' (Enter)':''}</button>`}}
   if(misEl&&html!==misEl._h){misEl._h=html;misEl.innerHTML=html;misEl.style.display=html?'block':'none';const s=misEl.querySelector&&misEl.querySelector('[data-ms]');if(s)s.onclick=()=>{if(near)startMis(near)};const x=misEl.querySelector&&misEl.querySelector('[data-mx]');if(x)x.onclick=stopMis}}
+ const PCK=(()=>{try{return matchMedia('(pointer:fine)').matches}catch(e){return false}})();
+ try{document.addEventListener('keydown',e=>{if(e.code=='Enter'&&active&&!run&&near&&!e.repeat){e.preventDefault();startMis(near)}})}catch(e){}
  const H_=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  /* ===== ТРАФИК =====
     • До 40 машин вокруг игрока (появляются в кольце 70–280 м, исчезают дальше 330 м).
@@ -2552,13 +2564,13 @@ const CITY=(()=>{
   function initR(){if(R.ok||!T.InstancedMesh)return;try{
     // модели из блоков (TRF): у каждой две инстанс-сетки — «краска» (перекрашивается) и «остальное»; LOD1 — общая коробка
     const MGL=new T.MeshBasicMaterial({vertexColors:true}),MP=new T.MeshStandardMaterial({vertexColors:true,roughness:.5,metalness:.25}),MF=new T.MeshStandardMaterial({vertexColors:true,roughness:.7,metalness:.1});
-    R.md=[];TRF.models().forEach(m=>{try{const k=TRF.bake(m),mk=(g,mat)=>{if(!g)return null;const o=new T.InstancedMesh(g,mat,T0.max);o.frustumCulled=false;o.count=0;o.castShadow=true;G.add(o);return o};
+    R.md=[];TRF.models().forEach(m=>{try{const k=TRF.bake(m),mk=(g,mat)=>{if(!g)return null;const o=new T.InstancedMesh(g,mat,T0.max);o.frustumCulled=false;if(T.InstancedBufferAttribute)o.instanceColor=new T.InstancedBufferAttribute(new Float32Array(T0.max*3).fill(1),3);o.count=0;o.castShadow=true;G.add(o);return o};
      R.md.push({m,w:m.w||1,v:m.v||1,hw:k.hw,hl:k.hl,h:k.h,mass:k.m||40,wh:k.wheels||[],pI:mk(k.paint,MP),fI:mk(k.fixed,MF),gI:(k.glow||[]).map(g=>mk(g,MGL)),n:0})}catch(e){}});
     // колёса всех машин — один инстанс-меш: шина + диск + спица (видно, как крутится)
     {const tire=new T.CylinderGeometry(1,1,1,14).rotateZ(Math.PI/2),hub=new T.CylinderGeometry(.6,.6,1.04,12).rotateZ(Math.PI/2),bar=new T.BoxGeometry(1.08,.2,1.15);
      R.wI=new T.InstancedMesh(mergeG([[tire,0x16181d],[hub,0xb9bfc9],[bar,0x6d7480]]),new T.MeshStandardMaterial({vertexColors:true,roughness:.7,metalness:.3}),T0.max*8);R.wI.frustumCulled=false;R.wI.count=0;R.wI.castShadow=true;G.add(R.wI)}
     R.wm=new T.Matrix4();R.wq=new T.Quaternion();R.we=new T.Euler(0,0,0,'YXZ');R.wp=new T.Vector3();R.ws=new T.Vector3();R.cm=new T.Matrix4();
-    R.low=new T.InstancedMesh(new T.BoxGeometry(1,1,1).translate(0,.5,0),T.MeshLambertMaterial?new T.MeshLambertMaterial({color:0xffffff}):new T.MeshStandardMaterial({color:0xffffff}),T0.max);R.low.frustumCulled=false;R.low.count=0;G.add(R.low);
+    R.low=new T.InstancedMesh(new T.BoxGeometry(1,1,1).translate(0,.5,0),T.MeshLambertMaterial?new T.MeshLambertMaterial({color:0xffffff}):new T.MeshStandardMaterial({color:0xffffff}),T0.max);R.low.frustumCulled=false;if(T.InstancedBufferAttribute)R.low.instanceColor=new T.InstancedBufferAttribute(new Float32Array(T0.max*3).fill(1),3);R.low.count=0;G.add(R.low);
     R.W=R.md.reduce((a,d)=>a+d.w,0);
     R.m=new T.Matrix4();R.q=new T.Quaternion();R.p=new T.Vector3();R.s=new T.Vector3();R.e=new T.Euler();R.c=new T.Color();
     // лампы светофоров (инстансы): для каждого регулируемого узла — по 2 лампы на ось
@@ -2566,7 +2578,7 @@ const CITY=(()=>{
      [[1,1],[-1,-1]].forEach(([sx,sz])=>{const px=X+sx*(wx/2+.8),pz=Z+sz*(wz/2+.8);BL.push({n,ax:'z',x:px-sx*wx*.4,z:pz+sz*.31});BL.push({n,ax:'x',x:px+sx*.31,z:pz-sz*wz*.4})})}
     R.bl=BL;R.bulb=new T.InstancedMesh(new T.BoxGeometry(.36,.36,.36),new T.MeshBasicMaterial({color:0xffffff}),BL.length);R.bulb.frustumCulled=false;
     BL.forEach((b,k)=>{R.m.makeTranslation(b.x,4.8,b.z);R.bulb.setMatrixAt(k,R.m);R.bulb.setColorAt(k,R.c.setHex(0x38e07b))});G.add(R.bulb);R.ok=true}catch(e){R.ok=false}}
-  const COLS=[0xd94b4b,0x3b7ddd,0xf2f2f2,0x2b2f38,0x9aa3ad,0x2e8b57,0x7a2e2e,0xe8e2d6,0x1f3f6b,0xff8a3d];
+  const COLS=[0xd94b4b,0x3b7ddd,0xf2f2f2,0x4a5260,0x9aa3ad,0x2e8b57,0xb03a3a,0xe8e2d6,0x2f5f9b,0xff8a3d,0xf2c94c,0x8fd3e8,0xc0c6cf,0x6a4c9c];
   function pickModel(){if(!R.md||!R.md.length)return null;let r=Math.random()*R.W;for(const d of R.md){r-=d.w;if(r<=0)return d}return R.md[0]}
   /* ---- поведение ---- */
   function laneOK(e,dir,k,s){for(const o of cars)if(o.mode=='lane'&&o.e==e&&o.dir==dir&&o.k==k&&Math.abs(o.s-s)<14)return false;return true}
@@ -2644,12 +2656,13 @@ const CITY=(()=>{
    const t=[-n[1],n[0]],vt=(va[0]-vb[0])*t[0]+(va[1]-vb[1])*t[1],ta=KR(ra[0],ra[1],t),tb=KR(rb[0],rb[1],t),Jt=Math.max(-.35*J,Math.min(.35*J,-vt/(1/A.m+1/B.m+ta*ta/A.I+tb*tb/B.I)));
    A.vx+=Jt/A.m*t[0];A.vz+=Jt/A.m*t[1];A.w+=Jt*ta/A.I;B.vx-=Jt/B.m*t[0];B.vz-=Jt/B.m*t[1];B.w-=Jt*tb/B.I;return -vr}
   const clampW=v=>{v.w=Math.max(-4.5,Math.min(4.5,v.w))};
-  function collide(c){const phw=c.hw||1,phl=c.hl||2,pm=Math.max(5,c.m||40);let hit=0;
+  function collide(c){const phw=c.hw||1,phl=c.hl||2,pm=Math.max(5,c.m||40);let hit=0;for(const v of cars)v._c=0;
    for(const v of cars){const dx=c.x-v.x,dz=c.z-v.z,R2=(phl+v.hl+1)**2;if(dx*dx+dz*dz>R2||Math.abs(c.y-roadY(v.x,v.z))>2.2)continue;
     const s=sat(c.x,c.z,c.psi,phw,phl,v.x,v.z,v.a,v.hw,v.hl);if(!s)continue;
     if(!v.cr){v.pv=v.v;toCrash(v)}
     const P={x:c.x,z:c.z,a:c.psi,hw:phw,hl:phl,vx:c.vx,vz:c.vz,w:c.yr||0,m:pm,I:pm*(4*phw*phw+4*phl*phl)/12};
-    const im=hitPair(P,v,s,.25);if(Math.hypot(v.vx,v.vz)<2){v.push=(v.push||0)+1/60;if(v.push>2.5)v.dead=1}else v.push=0;c.x=P.x;c.z=P.z;c.vx=P.vx;c.vz=P.vz;c.yr=(c.yr||0)+(P.w-(c.yr||0))*.6;clampW(v);hit=Math.max(hit,im)}
+    const im=hitPair(P,v,s,.25);v._c=1;v.push=(v.push||0)+1/60;if(v.push>(Math.hypot(v.vx,v.vz)<2?2.5:1.2))v.dead=1;c.x=P.x;c.z=P.z;c.vx=P.vx;c.vz=P.vz;c.yr=(c.yr||0)+(P.w-(c.yr||0))*.6;clampW(v);hit=Math.max(hit,im)}
+   for(const v of cars)if(!v._c)v.push=0;   // давим машину дольше ~1 с (она «прилипла» к бамперу) — убираем её, чтобы не тормозила игрока
    // разбитые машины толкают остальные
    for(const a of cars){if(!a.cr)continue;for(const b of cars){if(b===a||(b.cr&&b._k===a))continue;const dx=a.x-b.x,dz=a.z-b.z,R2=(a.hl+b.hl+.5)**2;if(dx*dx+dz*dz>R2)continue;
      const s=sat(a.x,a.z,a.a,a.hw,a.hl,b.x,b.z,b.a,b.hw,b.hl);if(!s)continue;if(!b.cr){if(b.ghost>0)continue;const vr=(a.vx-Math.sin(b.a)*b.v)*s.n[0]+(a.vz-Math.cos(b.a)*b.v)*s.n[1];if(vr>-.6){a.x+=s.n[0]*s.d;a.z+=s.n[1]*s.d;continue}toCrash(b)}a._k=b;const im=hitPair(a,b,s,.2);clampW(a);clampW(b);if(im>3&&SND.pop&&Math.hypot(a.x-c.x,a.z-c.z)<40)SND.pop(Math.min(.6,im/20))}a._k=null}
@@ -2672,7 +2685,7 @@ const CITY=(()=>{
   /* пересобрать модели (после правок в редакторе трафика) */
   function reload(){if(!R.ok)return;clear();R.md.forEach(d=>{[d.pI,d.fI].concat(d.gI||[]).forEach(o=>{if(o){G.remove(o);o.geometry.dispose&&o.geometry.dispose()}})});G.remove(R.low);G.remove(R.bulb);if(R.wI)G.remove(R.wI);R.wI=null;R.ok=false}
   return Object.assign(T0,{update,clear,cars,spawn,light,reload,get models(){return R.md}})})();
- return{mapImg:()=>mapBase(),J,G,h,flat,surf,enter,leave,tick,pose,stream,route,lanePt,nearNode,nearRoad,NODES,EDGES,LOTS,MIS,TR,CHK,stats,get active(){return active},get near(){return near},get run(){return run},startMis,stopMis,N,P,HALF}})();
+ return{navPt:()=>nav.pt,mapImg:()=>mapBase(),J,G,h,flat,surf,enter,leave,tick,pose,stream,route,lanePt,nearNode,nearRoad,NODES,EDGES,LOTS,MIS,TR,CHK,stats,get active(){return active},get near(){return near},get run(){return run},startMis,stopMis,N,P,HALF}})();
 /* ===== КАРЬЕРА: состояние, гараж, магазин, тюнинг, гонки ===== */
 CR=(()=>{
  const KEY='blockracer_career',H_=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
