@@ -1,9 +1,74 @@
 {
-  "name": "blockracer-mp",
-  "private": true,
-  "scripts": {
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev"
+  "name": "blockracer-desktop",
+  "productName": "Block Racer",
+  "version": "1.0.0",
+  "description": "Block Racer — ПК-версия. Игра всегда загружается свежей с сервера (обновляется из GitHub), работает и без интернета из кэша.",
+  "main": "main.js",
+  "author": {
+    "name": "Block Racer"
   },
-  "devDependencies": { "wrangler": "^4" }
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "dependencies": {
+    "electron-updater": "6.1.8"
+  },
+  "devDependencies": {
+    "electron": "31.3.1",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "com.blockracer.desktop",
+    "productName": "Block Racer",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "offline.html",
+      "build/icon.png"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "BlockRacer-${version}-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "shortcutName": "Block Racer"
+    },
+    "portable": {
+      "artifactName": "BlockRacer-${version}-portable.exe"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "daviddavidov836-rgb",
+        "repo": "blockracer-mp",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/daviddavidov836-rgb/blockracer-mp.git"
+  }
 }
