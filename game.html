@@ -888,6 +888,7 @@ for(let i=0;i<8;i++)addCone(65,-20+i*3);
 
 
 /* ---------- БЛОКИ / МАШИНА ---------- */
+const EDGC={},EDGM=new T.LineBasicMaterial({color:0x0b0e14,transparent:true,opacity:.28});
 const BOX=new T.BoxGeometry(.98,.98,.98),PICK=new T.BoxGeometry(1,1,1),PM=new T.MeshBasicMaterial({visible:false});
 /* арка над колесом: ширина 0.5 × высота 1 × длина 1.5 м, снизу вырез-полукруг R=ARC_R с центром на нижней грани (= ось колеса) */
 const ARC_R=.56,AR=b=>b.ar||ARC_R,ADIM=R=>[Math.max(1.5,Math.ceil((2*R+.36)/.5-1e-6)*.5),Math.max(1,Math.ceil((R+.3)/.5-1e-6)*.5)];const ARCG={},PKAC={},ALIN={};
@@ -1103,6 +1104,7 @@ function mk(b){const g=new T.Group();g.position.set(b.x,b.y+(b.t=='a'?ADIM(AR(b)
  if(b.t=='n'){A(new T.BoxGeometry(.9,.25,.9),M(0x3a3f4a),0,-.37,0);const sn=A(new T.CylinderGeometry(.36,.36,.36,20).rotateZ(Math.PI/2),M(0xc9ced8,{metalness:.8,roughness:.25}),0,.05,0);A(new T.CylinderGeometry(.3,.36,.2,20).rotateZ(Math.PI/2),M(0xd88a3a,{metalness:.7,roughness:.35}),-.26,.05,0);A(new T.CylinderGeometry(.13,.13,.5,10).rotateX(Math.PI/2),M(0xb0b6c0,{metalness:.8,roughness:.3}),.1,.25,-.3);A(new T.CylinderGeometry(.16,.16,.08,14).rotateZ(Math.PI/2),M(0x1d2027),.22,.05,0)}
  if(b.t=='m'){A(new T.BoxGeometry(.7,.55,.6),M(0x3a3f4a),0,-.1,-.05);A(new T.CylinderGeometry(.2,.24,.3,16).rotateX(Math.PI/2),M(0x1d2027,{metalness:.6,roughness:.3}),0,-.1,.35);A(new T.CircleGeometry(.15,16),M(0x7fb0ff,{emissive:0x2a5cab}),0,-.1,.505);A(new T.BoxGeometry(.18,.12,.18),M(0xe5484d,{emissive:0x801010}),.22,.25,-.1)}
  if(b.t=='k'){A(BOX,M(0x4b5262));A(new T.BoxGeometry(.62,.08,.62),M(0xffb020),0,.5,0);A(new T.CylinderGeometry(.06,.06,.28,8),M(0xd8dce6),0,.62,0);A(new T.SphereGeometry(.1,10,8),M(0xe5484d),0,.8,0)}
+ if((b.t=='b'||b.t=='g'||SH[b.t])&&T.EdgesGeometry){try{const eg=EDGC[b.t]||(EDGC[b.t]=new T.EdgesGeometry(b.t=='b'||b.t=='g'?BOX:shGeo(b.t),25)),ln=new T.LineSegments(eg,EDGM);ln.raycast=()=>{};g.add(ln)}catch(e){}}   // тонкие рёбра: в редакторе видно каждый блок
  g.traverse(o=>{if(o.isMesh&&o.material!==PM)o.castShadow=true});if(b.s&&b.t!='a')g.scale.setScalar(.5);
  const e=XE(b);if(e&&e.some(v=>v)){const q=BB(b),W=new T.Group();W.position.set((q[0]+q[1])/2,(q[2]+q[3])/2,(q[4]+q[5])/2);W.scale.set(q[1]-q[0],q[3]-q[2],q[5]-q[4]);g.position.set(0,0,0);g.scale.setScalar(1);W.add(g);W.userData.b=b;delete g.userData.b;return W}
  return g}
@@ -1190,7 +1192,12 @@ strip(5.75,0x38e07b);strip(-5.75,0xe5484d);
  const m=new T.Mesh(new T.PlaneGeometry(5,3.9),new T.MeshBasicMaterial({map:new T.CanvasTexture(c),transparent:true}));
  m.rotation.set(-Math.PI/2,0,Math.PI);m.position.set(0,.03,9);editG.add(m)})();
 const arrow=new T.Mesh(new T.ConeGeometry(.5,1.2,4).rotateX(Math.PI/2),new T.MeshBasicMaterial({color:0x38e07b}));arrow.position.y=.8;editG.add(arrow);
-const GBOX=new T.BoxGeometry(1.04,1.04,1.04),ghost=new T.Mesh(GBOX,new T.MeshBasicMaterial({color:0x38e07b,transparent:true,opacity:.45}));ghost.visible=false;editG.add(ghost);
+const GBOX=new T.BoxGeometry(1.04,1.04,1.04),ghost=new T.Mesh(GBOX,new T.MeshBasicMaterial({color:0x38e07b,transparent:true,opacity:.5,depthWrite:false}));ghost.visible=false;ghost.renderOrder=8;editG.add(ghost);
+/* контур призрака виден сквозь всё (куда встанет блок) + подсветка грани, к которой ставим */
+const GEC=new Map(),gOut=new T.LineSegments(T.EdgesGeometry?new T.EdgesGeometry(GBOX):GBOX,new T.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.95,depthTest:false}));gOut.renderOrder=11;ghost.add(gOut);
+const gHid=new T.Mesh(GBOX,new T.MeshBasicMaterial({color:0x38e07b,transparent:true,opacity:.16,depthTest:false,depthWrite:false}));gHid.renderOrder=7;ghost.add(gHid);
+const faceHL=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:.45,depthTest:false,depthWrite:false,side:T.DoubleSide}));faceHL.renderOrder=10;faceHL.visible=false;editG.add(faceHL);
+function ghostSync(){const g=ghost.geometry;if(gOut.userData.g!==g){gOut.userData.g=g;let e=GEC.get(g);if(!e&&T.EdgesGeometry){e=new T.EdgesGeometry(g,25);GEC.set(g,e)}if(e)gOut.geometry=e;gHid.geometry=g}const k=.5+.5*Math.sin(performance.now()*.008);ghost.material.opacity=.38+.2*k;gOut.material.opacity=.6+.4*k;gOut.material.color.copy?gOut.material.color.copy(ghost.material.color).lerp(new T.Color(0xffffff),.55):0}
 /* центр тяжести: знак «шахматный круг» поверх всего + стойка до земли — виден при любом цвете блоков */
 const cgM=new T.Group(),cgD=new T.Mesh(new T.RingGeometry(.16,.26,24).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0xffd200,transparent:true,opacity:.9,depthTest:false}));cgD.renderOrder=9;
 {let tex=null;try{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.beginPath();x.arc(64,64,60,0,7);x.fillStyle='#fff';x.fill();
@@ -1385,7 +1392,9 @@ let selAN=0;function selAct(a){const b=selS||selW;if(!b||!blocks.includes(b)){se
  else if(a[0]=='l'){const v=+a.slice(1);L.forEach(o=>{if(v)o.l=v;else delete o.l});if(v)curL=v;SND.ui(v?'place':'del')}
  refresh();sync()}
 function selUpd(){if(selS&&!blocks.includes(selS))selS=null;if(selW&&!blocks.includes(selW))selW=null;selpUpd();{const st=!!(selS&&STR(selS.t)),se=$('ssz');if(se)se.innerHTML=selS?(st||THK(selS.t)?strTxt(selS):Lc('Этот блок можно только сдвигать')):Lc('нажми на блок');try{document.querySelectorAll('#sset [data-st]').forEach(b=>b.style.display=st||!selS?'':'none')}catch(e){}}if(selS&&(tool=='str'||tool=='sel')){selM.visible=true;gBox(selS,selM);return}if(selW&&!blocks.includes(selW))selW=null;const on=!!(selW&&(tool=='set'||tool=='sel'));selM.visible=on;if(on){gBox(selW,selM);const e=$('wpos');if(e)e.textContent='X '+selW.x.toFixed(2)+' · Y '+selW.y.toFixed(2)+' · Z '+selW.z.toFixed(2)}else{const e=$('wpos');if(e)e.textContent=Lc('нажми на колесо')}}
-function showGhost(t){lastT=t;ghost.visible=false;if(!t||(document.body.classList.contains&&document.body.classList.contains('gopen')))return;ghost.rotation.set(0,0,0);ghost.geometry=GBOX;
+function showGhost(t){lastT=t;ghost.visible=false;faceHL.visible=false;if(!t||(document.body.classList.contains&&document.body.classList.contains('gopen')))return;ghost.rotation.set(0,0,0);ghost.geometry=GBOX;
+ if(tool=='add'&&t.b&&t.n){try{const B=box(t.b),cl=t.b.t=='w'?0:cfg.clr,n=t.n,cx=(B[0]+B[1])/2,cy=(B[2]+B[3])/2+cl,cz=(B[4]+B[5])/2,sx=B[1]-B[0],sy=B[3]-B[2],sz=B[5]-B[4];faceHL.rotation.set(0,0,0);
+  if(n.ax=='x'){faceHL.position.set(n.pl+n.sg*.01,cy,cz);faceHL.rotation.y=Math.PI/2;faceHL.scale.set(sz,sy,1)}else if(n.ax=='y'){faceHL.position.set(cx,n.pl+cl+n.sg*.01,cz);faceHL.rotation.x=-Math.PI/2;faceHL.scale.set(sx,sz,1)}else{faceHL.position.set(cx,cy,n.pl+n.sg*.01);faceHL.scale.set(sx,sy,1)}faceHL.visible=true}catch(e){}}
  if(tool=='add'){const c=cellFor(t);if(ok(c)){const z=SZ(c);if(ORI(ty)){ghost.geometry=ty=='x'?PIPEX:shGeo(ty);oriApply(ghost,ty,ori.k%NOR(ty))}ghost.scale.setScalar(z*(ORI(ty)?1.05:1));ghost.position.set(c.x,c.y+z/2+(ty=='w'?0:cfg.clr),c.z);if(ty=='w'||ty=='a')gBox(c);else if(tpl&&tpl.t==ty&&tpl.e){ghost.geometry=GBOX;ghost.rotation.set(0,0,0);gBox({...c,t:ty,e:tpl.e})}ghost.material.color.set(0x38e07b);ghost.visible=true}}
  else if(tool=='lgt'&&t.b&&LOK(t.b.t)){gBox(t.b);ghost.material.color.set(t.b.l==curL?0xe5484d:LCOL[curL][1]);ghost.visible=true}  else if((tool=='str'&&t.b&&t.b.t!='w')||(tool=='mat'&&t.b&&AER(t.b.t))){gBox(t.b);ghost.material.color.set(tool=='mat'?(t.b.a?0xe5484d:0x2b2f38):0xffb020);ghost.visible=true}
  else if(t.b&&tool=='sel'){gBox(t.b);ghost.material.color.set(0xffb020);ghost.visible=true}
@@ -3275,6 +3284,7 @@ const WE=(()=>{
 {const e=$('mWh');if(e)e.onclick=()=>{$('menu').classList.remove('open');WE.open()}}
 (function loop(now){requestAnimationFrame(loop);SND.musTick();QA.tick(now-last);const dt=Math.min(Math.max((now-last)/1000,.001),1/30);last=now;
  if(mode=='wheel'){WE.tick(dt);R.render(WE.scene,WE.cam);return}
+ EDGM.visible=mode=='edit';if(mode=='edit'&&ghost.visible)ghostSync();
  if(mode=='edit'){const lo=el<0,ty0=lo?.9:1.5;{const cr=!!(CR&&CR.on);if(cr)garRoom();if(garG)garG.visible=cr;if(pad._cr!==cr){pad._cr=cr;try{pad.material.color.set(cr?0x2b2622:0x2a3550)}catch(e){}const bg=cr?0x140e09:0x151c2e;scene.background=new T.Color(bg);scene.fog=new T.Fog(bg,200,400)}}pad.material.opacity=lo?.18:1;pad.material.depthWrite=!lo;cam.position.set(camT.x+Math.sin(az)*Math.cos(el)*dist,ty0+camT.y+Math.sin(el)*dist,camT.z+Math.cos(az)*Math.cos(el)*dist);cam.lookAt(camT.x,ty0+camT.y,camT.z);
   cam.fov=55;cam.updateProjectionMatrix();arrow.position.z=7+Math.sin(now/250)*.35}
  else if(car)step(dt);
