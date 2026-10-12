@@ -125,6 +125,8 @@ body:not(.pc) #mWh,body:not(.pc) #wdzE,#app[data-m=drive] #mWh{display:none!impo
 #wed .wvb{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:rgba(14,19,31,.8);padding:6px;border-radius:12px;border:1px solid var(--line);white-space:nowrap}
 #wed .wvb label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);margin-left:6px}#wed .wvb input{width:90px}
 #wed .whint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--mut);background:rgba(14,19,31,.7);padding:5px 10px;border-radius:999px;white-space:nowrap;max-width:95%;overflow:hidden;text-overflow:ellipsis}
+body.career #edit{background:linear-gradient(180deg,rgba(42,30,16,.97),rgba(20,14,8,.98))!important;border-left-color:#6b4a1a!important}body.career #edit .sh{color:#c9a96a}body.career #mhint{background:rgba(255,181,46,.08)}
+@media (orientation:landscape) and (min-width:560px){body.career #edit::before{content:'🔧 ГАРАЖ · КАРЬЕРА';order:0;display:block;font:900 13px/1 system-ui;letter-spacing:.18em;color:#ffb52e;padding:2px 2px 6px;border-bottom:1px solid #6b4a1a}}
 body:not(.career) #mG{display:none}body.career .krk{display:none}body.career #mE,body.career #mD,body.career #mL,body.career #mMp,body.career #mIm,body.career #mL2,body.career #mH,body.career #mpb{display:none!important}
 body.career #app[data-m=drive] #mL2{display:none!important}
 body.gopen #top,body.gopen #edit,body.gopen #info,body.gopen #menu,body.gopen #tut{display:none!important}
@@ -1129,6 +1131,33 @@ if(!blocks.length)blocks=defCar();
 /* ---------- РЕДАКТОР ---------- */
 const editG=new T.Group();scene.add(editG);
 const pad=new T.Mesh(new T.PlaneGeometry(11,11).rotateX(-Math.PI/2),new T.MeshStandardMaterial({color:0x2a3550,roughness:.9,transparent:true,opacity:1}));pad.receiveShadow=true;editG.add(pad);
+/* гараж карьеры: своя комната вокруг площадки (стены видны изнутри, ближние при облёте прячутся) */
+let garG=null;function garRoom(){if(garG)return garG;garG=new T.Group();try{
+ const B=(w,h,d,x,y,z,c,o)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),M(c,o));m.position.set(x,y,z);m.receiveShadow=true;garG.add(m);return m},Cy=(r,h,x,y,z,c,o,rx)=>{const m=new T.Mesh(new T.CylinderGeometry(r,r,h,18),M(c,o));m.position.set(x,y,z);if(rx)m.rotation.x=rx;garG.add(m);return m};
+ // тёплые тёмные тона: кирпичные стены, тёмная панель снизу, тёмный потолок, пол — тёмный бетон
+ const WM=new T.MeshStandardMaterial({color:0x5b3a2b,roughness:.95,side:T.BackSide}),CM=new T.MeshStandardMaterial({color:0x1c1612,roughness:1,side:T.BackSide}),HID=new T.MeshBasicMaterial({visible:false});
+ const room=new T.Mesh(new T.BoxGeometry(46,15,46),[WM,WM,CM,HID,WM,WM]);room.position.y=7.49;garG.add(room);
+ const PM2=new T.MeshStandardMaterial({color:0x2a201a,roughness:.9,side:T.BackSide}),band=new T.Mesh(new T.BoxGeometry(45.8,1.6,45.8),[PM2,PM2,HID,HID,PM2,PM2]);band.position.y=.8;garG.add(band);
+ const TR=new T.MeshStandardMaterial({color:0xc98a2e,roughness:.6,metalness:.3,side:T.BackSide}),trim=new T.Mesh(new T.BoxGeometry(45.7,.12,45.7),[TR,TR,HID,HID,TR,TR]);trim.position.y=1.64;garG.add(trim);
+ const fl=new T.Mesh(new T.PlaneGeometry(45.9,45.9).rotateX(-Math.PI/2),new T.MeshStandardMaterial({color:0x34302b,roughness:.7,metalness:.1}));fl.position.y=-.03;fl.receiveShadow=true;garG.add(fl);
+ // жёлто-чёрная рамка рабочей зоны
+ for(let k=0;k<24;k++){const c=k%2?0x1d1d1d:0xf2b81c,t=-6.4+k*12.8/24+12.8/48;B(12.8/24,.02,.3,t,-.015,-6.4,c);B(12.8/24,.02,.3,t,-.015,6.4,c);B(.3,.02,12.8/24,-6.4,-.015,t,c);B(.3,.02,12.8/24,6.4,-.015,t,c)}
+ // ворота-рольставня на задней стене
+ B(14,9,.3,0,4.5,-22.8,0x5d6168,{metalness:.5,roughness:.55});for(let k=0;k<18;k++)B(14,.08,.4,0,.5+k*.5,-22.65,0x43474e,{metalness:.5});B(15,.5,.6,0,9.2,-22.7,0xf2b81c);
+ // верстак и стенд с инструментами (левая стена)
+ B(1.4,1,6,-22,0.5,-6,0x6b4a2a);B(1.6,.12,6.2,-21.9,1.06,-6,0x8a6a44);B(.15,3,6,-22.8,3,-6,0x3b3f46);
+ for(let k=0;k<7;k++)B(.12,.9-(k%3)*.2,.15,-22.65,2.6+(k%2)*.6,-8.4+k*.8,[0xd33b3b,0x2a7de1,0xffcc33,0xc9ced8][k%4],{metalness:.6});
+ // стеллаж с запчастями (правая стена)
+ for(let k=0;k<4;k++)B(1.6,.1,8,22,.6+k*1.6,4,0x4a4f58,{metalness:.4});B(.1,6.5,.1,21.3,3.25,0,0x4a4f58);B(.1,6.5,.1,21.3,3.25,8,0x4a4f58);
+ for(let k=0;k<10;k++)B(.9,.6+(k%3)*.25,.9,22,.95+Math.floor(k/3)*1.6+(k%3)*.12,.8+(k%5)*1.5,[0xd8823a,0x3b7ddd,0x5c6470,0xe8e2d6][k%4]);
+ // стопка шин, бочки, лампы
+ for(let k=0;k<5;k++){const t=new T.Mesh(new T.TorusGeometry(.75,.32,10,20).rotateX(Math.PI/2),M(0x18191c,{roughness:.9}));t.position.set(17,.32+k*.62,-17);garG.add(t)}
+ for(let k=0;k<3;k++){Cy(.6,1.8,-18+k*1.3,.9,18,[0xc0392b,0x2a7de1,0xc0392b][k],{metalness:.4});Cy(.62,.08,-18+k*1.3,1.82,18,0x2a2d33)}
+ for(let k=0;k<3;k++){const L=new T.Mesh(new T.BoxGeometry(6,.15,.8),new T.MeshBasicMaterial({color:0xffcf8a}));L.position.set(-10+k*10,14.85,0);garG.add(L)}
+ // табличка
+ const cv=document.createElement('canvas');cv.width=512;cv.height=128;const x=cv.getContext&&cv.getContext('2d');if(x){x.fillStyle='#1d1610';x.fillRect(0,0,512,128);x.strokeStyle='#ffb52e';x.lineWidth=8;x.strokeRect(6,6,500,116);x.fillStyle='#ffb52e';x.font='900 64px system-ui';x.textAlign='center';x.fillText('BLOCK GARAGE',256,88);
+  const sg=new T.Mesh(new T.PlaneGeometry(10,2.5),new T.MeshBasicMaterial({map:new T.CanvasTexture(cv)}));sg.position.set(0,11.2,-22.6);garG.add(sg)}
+}catch(e){}garG.visible=false;editG.add(garG);return garG}
 const eg=new T.GridHelper(11,11,0x7f93c8,0x45567f);eg.position.y=.01;editG.add(eg);
 const eg2=new T.GridHelper(10.5,21,0x7f93c8,0x7f93c8);eg2.material.transparent=true;eg2.material.opacity=.55;eg2.position.y=.012;eg2.visible=false;editG.add(eg2);
 const axS=new T.Mesh(new T.PlaneGeometry(.5,10.5).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:0xffb020,transparent:true,opacity:.18,depthWrite:false}));axS.position.y=.014;axS.visible=false;editG.add(axS);
@@ -1304,7 +1333,7 @@ let selAN=0;function selAct(a){const b=selS||selW;if(!b||!blocks.includes(b)){se
  else if(a[0]=='l'){const v=+a.slice(1);L.forEach(o=>{if(v)o.l=v;else delete o.l});if(v)curL=v;SND.ui(v?'place':'del')}
  refresh();sync()}
 function selUpd(){if(selS&&!blocks.includes(selS))selS=null;if(selW&&!blocks.includes(selW))selW=null;selpUpd();{const st=!!(selS&&STR(selS.t)),se=$('ssz');if(se)se.innerHTML=selS?(st||THK(selS.t)?strTxt(selS):Lc('Этот блок можно только сдвигать')):Lc('нажми на блок');try{document.querySelectorAll('#sset [data-st]').forEach(b=>b.style.display=st||!selS?'':'none')}catch(e){}}if(selS&&(tool=='str'||tool=='sel')){selM.visible=true;gBox(selS,selM);return}if(selW&&!blocks.includes(selW))selW=null;const on=!!(selW&&(tool=='set'||tool=='sel'));selM.visible=on;if(on){gBox(selW,selM);const e=$('wpos');if(e)e.textContent='X '+selW.x.toFixed(2)+' · Y '+selW.y.toFixed(2)+' · Z '+selW.z.toFixed(2)}else{const e=$('wpos');if(e)e.textContent=Lc('нажми на колесо')}}
-function showGhost(t){lastT=t;ghost.visible=false;if(!t)return;ghost.rotation.set(0,0,0);ghost.geometry=GBOX;
+function showGhost(t){lastT=t;ghost.visible=false;if(!t||(document.body.classList.contains&&document.body.classList.contains('gopen')))return;ghost.rotation.set(0,0,0);ghost.geometry=GBOX;
  if(tool=='add'){const c=cellFor(t);if(ok(c)){const z=SZ(c);if(ORI(ty)){ghost.geometry=ty=='x'?PIPEX:shGeo(ty);oriApply(ghost,ty,ori.k%NOR(ty))}ghost.scale.setScalar(z*(ORI(ty)?1.05:1));ghost.position.set(c.x,c.y+z/2+(ty=='w'?0:cfg.clr),c.z);if(ty=='w'||ty=='a')gBox(c);else if(tpl&&tpl.t==ty&&tpl.e){ghost.geometry=GBOX;ghost.rotation.set(0,0,0);gBox({...c,t:ty,e:tpl.e})}ghost.material.color.set(0x38e07b);ghost.visible=true}}
  else if(tool=='lgt'&&t.b&&LOK(t.b.t)){gBox(t.b);ghost.material.color.set(t.b.l==curL?0xe5484d:LCOL[curL][1]);ghost.visible=true}  else if((tool=='str'&&t.b&&t.b.t!='w')||(tool=='mat'&&t.b&&AER(t.b.t))){gBox(t.b);ghost.material.color.set(tool=='mat'?(t.b.a?0xe5484d:0x2b2f38):0xffb020);ghost.visible=true}
  else if(t.b&&tool=='sel'){gBox(t.b);ghost.material.color.set(0xffb020);ghost.visible=true}
@@ -1329,7 +1358,8 @@ function strMove(ax,d){const b=selS;if(!b||!blocks.includes(b)){toast(Lc('Сна
  if(!ok(nb,ex)||nm&&(!ok(nm,ex)||ovl(nb,nm))){toast(Lc('Туда нельзя — мешает блок или край'));SND.ui('del');return}
  snap();b[ax]=nb[ax];if(m)m[ax]=nm[ax];refresh();SND.ui('click')}
 function strTxt(b){const S=SZ(b),q=BB(b),f=v=>+(v/S).toFixed(2);return Lc('Длина')+' <b>'+f(q[5]-q[4])+'</b> · '+Lc('Ширина')+' <b>'+f(q[1]-q[0])+'</b> · '+Lc('Высота')+' <b>'+f(q[3]-q[2])+'</b>'}
-function tap(e){const t=target(e);if(!t){if(tool=='sel'&&(selS||selW)){selS=selW=null;sync()}return}
+function tap(e){if(document.body.classList.contains&&document.body.classList.contains('gopen'))return;   // меню гаража открыто — по машине не строим
+ const t=target(e);if(!t){if(tool=='sel'&&(selS||selW)){selS=selW=null;sync()}return}
  if(tool=='sel'){if(!t.b){selS=selW=null}else if(t.b.t=='w'){selW=t.b;selS=null;wrI.value=t.b.r||.5;wwI.value=t.b.wd||.8;upW()}else{selS=t.b;selW=null}SND.ui('click');sync()}
  else if(tool=='add'){const c=cellFor(t);if(!ok(c))return;snap();put(c);SND.ui('place')}
  else if(tool=='rot'||tool=='tilt'){if(!t.b||!ORI(t.b.t)||tool=='tilt'&&t.b.t=='x'){toast(Lc('Крутить можно 📐 скосы и 🔺 углы'));return}snap();rotBlk(t.b,tool=='tilt');SND.ui('place')}
@@ -2009,7 +2039,7 @@ function dropCar(){if(!car)return;scene.remove(car.root);scene.remove(car.dbg);c
 function setMode(m){SND.music(m=='drive'?'race':'garage');if(m=='drive'){dropCar();if(!startDrive()){SND.music('garage');return}MP.sendCar()}else if(car){SND.stop();SPD.off();fxEl.style.opacity=0;vgEl.style.opacity=0;dropCar();MP.idle()}
  mode=m;const d=m=='drive',cr=!!(CR&&CR.on);app.dataset.m=m;world.visible=d&&!cr;if(CR)CR.G.visible=d&&cr;editG.visible=!d;$('edit').style.display=d?'none':'flex';$('hud').style.display=d?'block':'none';$('info').style.display=d?'none':'block';
  $('mE').classList.toggle('on',!d);$('mD').classList.toggle('on',d);
- const bg=d?0xcfe3f5:0x151c2e;scene.background=new T.Color(bg);scene.fog=new T.Fog(bg,d?140:200,d?520:400);
+ const bg=d?0xcfe3f5:(cr?0x231a10:0x151c2e);scene.background=new T.Color(bg);scene.fog=new T.Fog(bg,d?140:200,d?520:400);
  if(!d){sun.position.set(15,35,20);sun.target.position.set(0,0,0)}}
 $('mE').onclick=()=>{SND.ui('click');setMode('edit')};$('mD').onclick=()=>{SND.ui('click');setMode('drive')};
 /* ---------- ОБУЧЕНИЕ ---------- */
@@ -3176,7 +3206,7 @@ const WE=(()=>{
 {const e=$('mWh');if(e)e.onclick=()=>{$('menu').classList.remove('open');WE.open()}}
 (function loop(now){requestAnimationFrame(loop);SND.musTick();QA.tick(now-last);const dt=Math.min(Math.max((now-last)/1000,.001),1/30);last=now;
  if(mode=='wheel'){WE.tick(dt);R.render(WE.scene,WE.cam);return}
- if(mode=='edit'){const lo=el<0,ty0=lo?.9:1.5;pad.material.opacity=lo?.18:1;pad.material.depthWrite=!lo;cam.position.set(camT.x+Math.sin(az)*Math.cos(el)*dist,ty0+camT.y+Math.sin(el)*dist,camT.z+Math.cos(az)*Math.cos(el)*dist);cam.lookAt(camT.x,ty0+camT.y,camT.z);
+ if(mode=='edit'){const lo=el<0,ty0=lo?.9:1.5;{const cr=!!(CR&&CR.on);if(cr)garRoom();if(garG)garG.visible=cr;if(pad._cr!==cr){pad._cr=cr;try{pad.material.color.set(cr?0x2b2622:0x2a3550)}catch(e){}const bg=cr?0x140e09:0x151c2e;scene.background=new T.Color(bg);scene.fog=new T.Fog(bg,200,400)}}pad.material.opacity=lo?.18:1;pad.material.depthWrite=!lo;cam.position.set(camT.x+Math.sin(az)*Math.cos(el)*dist,ty0+camT.y+Math.sin(el)*dist,camT.z+Math.cos(az)*Math.cos(el)*dist);cam.lookAt(camT.x,ty0+camT.y,camT.z);
   cam.fov=55;cam.updateProjectionMatrix();arrow.position.z=7+Math.sin(now/250)*.35}
  else if(car)step(dt);
  tutTick(dt);MP.render();R.render(scene,cam)})(last);
