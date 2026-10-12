@@ -19,6 +19,8 @@ const cacheFile = (u) => {
 const TYPES = { html: 'text/html; charset=utf-8', js: 'application/javascript; charset=utf-8', css: 'text/css; charset=utf-8', json: 'application/json' };
 const typeOf = (f) => TYPES[(f.split('.').pop() || '').toLowerCase()] || (f === 'game.html' ? TYPES.html : 'application/octet-stream');
 
+// папка сохранений — прежняя («Block Racer»), даже после смены внутреннего имени программы (на Linux пробел в пути ломал запуск)
+try { app.setName('Block Racer'); app.setPath('userData', path.join(app.getPath('appData'), 'Block Racer')); } catch (e) {}
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 
 let win = null;
