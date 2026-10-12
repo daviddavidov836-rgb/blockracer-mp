@@ -2,21 +2,14 @@
   "name": "blockracer-desktop",
   "productName": "Block Racer",
   "version": "1.0.0",
-  "description": "Block Racer — ПК-версия. Игра всегда загружается свежей с сервера (обновляется из GitHub), работает и без интернета из кэша.",
+  "description": "Block Racer PC",
   "main": "main.js",
-  "author": "Block Racer",
+  "author": { "name": "Block Racer" },
   "license": "UNLICENSED",
-  "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder --win"
-  },
-  "dependencies": {
-    "electron-updater": "6.1.8"
-  },
-  "devDependencies": {
-    "electron": "31.3.1",
-    "electron-builder": "24.13.3"
-  },
+  "repository": { "type": "git", "url": "https://github.com/daviddavidov836-rgb/blockracer-mp.git" },
+  "scripts": { "start": "electron .", "dist": "electron-builder --win" },
+  "dependencies": { "electron-updater": "6.1.8" },
+  "devDependencies": { "electron": "31.3.1", "electron-builder": "24.13.3" },
   "build": {
     "appId": "com.blockracer.desktop",
     "productName": "Block Racer",
@@ -28,6 +21,7 @@
       "artifactName": "BlockRacer-${version}-${target}.${ext}"
     },
     "nsis": { "oneClick": true, "perMachine": false, "createDesktopShortcut": true, "shortcutName": "Block Racer" },
-    "portable": { "artifactName": "BlockRacer-${version}-portable.exe" }
+    "portable": { "artifactName": "BlockRacer-${version}-portable.exe" },
+    "publish": [{ "provider": "github", "owner": "daviddavidov836-rgb", "repo": "blockracer-mp", "releaseType": "release" }]
   }
 }
