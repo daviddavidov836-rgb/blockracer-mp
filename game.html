@@ -2477,7 +2477,7 @@ const CITY=(()=>{
  const mkMat=c=>new T.MeshBasicMaterial({color:c,transparent:true,opacity:.28,depthWrite:false,side:T.DoubleSide,fog:false});
  const marks=MIS.map(m=>{const n=NODES[m.s],o=new T.Mesh(BEAM,mkMat(m.t=='cp'?0x4fb4ff:0xb27bff));o.position.set(n.x,n.y||0,n.z);o.renderOrder=5;G.add(o);return o});
  const tgt=new T.Mesh(BEAM,mkMat(0xffc83a));tgt.visible=false;tgt.renderOrder=5;G.add(tgt);
- const arrow=new T.Mesh((()=>{try{const s=new T.Shape();s.moveTo(0,1.6);s.lineTo(1.1,-.2);s.lineTo(.4,-.2);s.lineTo(.4,-1.2);s.lineTo(-.4,-1.2);s.lineTo(-.4,-.2);s.lineTo(-1.1,-.2);s.closePath();return new T.ExtrudeGeometry(s,{depth:.25,bevelEnabled:false}).rotateX(-Math.PI/2)}catch(e){return new T.ConeGeometry(.6,1.8,4).rotateX(Math.PI/2)}})(),new T.MeshBasicMaterial({color:0xffc83a,depthTest:false}));arrow.renderOrder=12;arrow.visible=false;G.add(arrow);
+ const arrow=new T.Mesh((()=>{try{const s=new T.Shape();s.moveTo(0,1.6);s.lineTo(1.1,-.2);s.lineTo(.4,-.2);s.lineTo(.4,-1.2);s.lineTo(-.4,-1.2);s.lineTo(-.4,-.2);s.lineTo(-1.1,-.2);s.closePath();return new T.ExtrudeGeometry(s,{depth:.25,bevelEnabled:false}).rotateX(Math.PI/2)}catch(e){return new T.ConeGeometry(.6,1.8,4).rotateX(Math.PI/2)}})(),new T.MeshBasicMaterial({color:0xffc83a,depthTest:false}));arrow.renderOrder=12;arrow.visible=false;G.add(arrow);
  /* ---- мини-карта ---- */
  const MS=2.2;let mapImg=null;const mapEl=(()=>{try{const c=document.createElement('canvas');c.id='cmap';c.width=c.height=150;($('hud')||document.body).appendChild(c);return c}catch(e){return null}})();
  const MX0=-EDGE-60,MZ0=-EDGE-60,MX=v=>(v-MX0)/MS,MZ=v=>(v-MZ0)/MS;
@@ -2499,21 +2499,26 @@ const CITY=(()=>{
     на серпантине — точка на дороге метров на 30 вперёд к цели; виртуальные точки — к ближайшему узлу сети, потом напрямую */
  function nearEdge(x,z){let be=-1,bt=0,bd=1e9;for(const E of EDGES){const A=NODES[E.a],B=NODES[E.b],dx=B.x-A.x,dz=B.z-A.z,L2=dx*dx+dz*dz||1;let t=((x-A.x)*dx+(z-A.z)*dz)/L2;t=t<0?0:t>1?1:t;const d=Math.hypot(x-A.x-dx*t,z-A.z-dz*t);if(d<bd){bd=d;be=E.id;bt=t}}return{e:be,t:bt,d:bd}}
  function netNode(n){const G=NODES[n];if(G.e.length)return n;let bi=n,bd=1e9;NODES.forEach((q,k)=>{if(!q.e.length)return;const d=Math.hypot(q.x-G.x,q.z-G.z);if(d<bd){bd=d;bi=k}});return bi}
- function navUpd(c,goal){nav.t=.35;const G=NODES[goal];nav.path=null;
+ function navUpd(c,goal){nav.t=.3;const G=NODES[goal];nav.path=null;nav.len=null;
   if(G.pi!=null){const q=J.nearIdx(c.x,c.z);if(q.d<25){const st=Math.sign(G.pi-q.i)||1,k=q.i+st*Math.min(Math.abs(G.pi-q.i),22);nav.pt=J.pt(k);return}}
   const ne=nearEdge(c.x,c.z);if(ne.e<0||ne.d>45){nav.pt={x:G.x,z:G.z};return}
-  const tg=netNode(goal),E=EDGES[ne.e],ra=route(E.a,tg),rb=route(E.b,tg);let da=ne.t*E.len+ra.len,db=(1-ne.t)*E.len+rb.len;
-  if(nav.side==='a')da-=15;if(nav.side==='b')db-=15;
-  const useA=da<=db;nav.side=useA?'a':'b';let path=(useA?ra:rb).nodes;
-  const n0=NODES[path[0]];if(Math.hypot(n0.x-c.x,n0.z-c.z)<12&&path.length>1)path=path.slice(1);
-  if(tg!==goal){const n1=NODES[path[0]];if(path.length<=1&&Math.hypot(n1.x-c.x,n1.z-c.z)<20){nav.pt={x:G.x,z:G.z};return}path=path.concat([goal])}
-  nav.path=path;const w=NODES[path[0]];nav.pt={x:w.x,z:w.z}}
+  const tg=netNode(goal),E=EDGES[ne.e],ra=route(E.a,tg),rb=route(E.b,tg);let da=ne.t*E.len+ra.len,db=(1-ne.t)*E.len+rb.len;const la=da,lb=db;
+  // разворот стоит времени: штраф стороне, которая сзади по ходу машины
+  const hx=Math.sin(c.psi||0),hz=Math.cos(c.psi||0),fw=hx*E.dx+hz*E.dz;if(fw>.3)da+=35;else if(fw<-.3)db+=35;
+  // гистерезис только в пределах того же ребра
+  if(nav.e===ne.e){if(nav.side==='a')da-=12;if(nav.side==='b')db-=12}
+  const useA=da<=db;nav.side=useA?'a':'b';nav.e=ne.e;let path=(useA?ra:rb).nodes.slice();
+  if(tg!==goal)path.push(goal);nav.path=path;nav.len=(useA?la:lb)+(tg!==goal?Math.hypot(G.x-NODES[tg].x,G.z-NODES[tg].z):0);
+  // точка «впереди по маршруту»: от проекции машины на улицу идём по пути на LA метров
+  const A=NODES[E.a];let px=A.x+(NODES[E.b].x-A.x)*ne.t,pz=A.z+(NODES[E.b].z-A.z)*ne.t,left=24;
+  for(const id of path){const n=NODES[id],sx=n.x-px,sz=n.z-pz,l=Math.hypot(sx,sz);if(l>=left){nav.pt={x:px+sx/l*left,z:pz+sz/l*left};return}left-=l;px=n.x;pz=n.z}
+  nav.pt={x:G.x,z:G.z}}
  const fmt=t=>Math.floor(t/60)+':'+(t%60).toFixed(1).padStart(4,'0');
  function enter(){TR.reload();active=true;G.visible=true;run=null;near=null;stream(0,0,true);if(mapEl)mapEl.style.display='block'}
  function leave(){active=false;G.visible=false;run=null;tgt.visible=arrow.visible=false;if(mapEl)mapEl.style.display='none';if(gEl)gEl.style.display='none';if(misEl){misEl.innerHTML='';misEl._mode='';misEl.className='';misEl._h=null;misEl.style.display='none'}TR.clear()}
  function pose(c){if(run&&run.fail==null&&run.k>0){const p=NODES[run.list[run.k-1]],q=NODES[run.list[run.k]];return{x:p.x,z:p.z,a:Math.atan2(q.x-p.x,q.z-p.z)}}
   if(c&&isFinite(c.x)){const r=nearRoad(c.x,c.z,c.psi);return r}const n=NODES[nid(N/2,N/2)];return{x:n.x-2.5,z:n.z+40,a:Math.PI}}
- function startMis(m){const pts=[m.s].concat(m.pts);run={m,list:pts,k:1,t:0,fail:null};nav.goal=null;nav.ang=null;nav.side=null;nav.pt=null;const n=NODES[m.s],r0=route(m.s,pts[1]).nodes,q=NODES[r0.length>1?r0[1]:pts[1]];
+ function startMis(m){const pts=[m.s].concat(m.pts);run={m,list:pts,k:1,t:0,fail:null};nav.goal=null;nav.ang=null;nav.side=null;nav.pt=null;nav.e=null;nav.len=null;const n=NODES[m.s],r0=route(m.s,pts[1]).nodes,q=NODES[r0.length>1?r0[1]:pts[1]];
   if(car)Object.assign(car,{x:n.x,z:n.z,y:h(n.x,n.z)+.3,vx:0,vz:0,vy:0,psi:Math.atan2(q.x-n.x,q.z-n.z),yr:0});car.camA=car.psi;SND.ui('ok');toast('🏁 '+Lc(m.n))}
  function stopMis(q){run=null;tgt.visible=false;arrow.visible=false;if(gEl)gEl.style.display='none';if(misEl){misEl._mode='';misEl.className='';misEl._h=null;misEl.style.display='none'}if(!q)SND.ui('del')}
  function medalOf(m,t){return t<=m.med[2]?3:t<=m.med[1]?2:t<=m.med[0]?1:0}
@@ -2529,8 +2534,8 @@ const CITY=(()=>{
   let html='';
   if(run){run.t+=dt;const goal=run.list[run.k],p=NODES[goal],d=Math.hypot(c.x-p.x,c.z-p.z);tgt.visible=true;tgt.position.set(p.x,p.y||0,p.z);
    nav.t-=dt;if(nav.t<=0||nav.goal!==goal){if(nav.goal!==goal)nav.side=null;nav.goal=goal;navUpd(c,goal)}const w=nav.pt||p,ang0=Math.atan2(w.x-c.x,w.z-c.z);if(nav.ang==null)nav.ang=ang0;{let dA=ang0-nav.ang;while(dA>Math.PI)dA-=2*Math.PI;while(dA<-Math.PI)dA+=2*Math.PI;nav.ang+=dA*Math.min(1,dt*7)}const ang=nav.ang;
-   arrow.visible=true;arrow.position.set(c.x+Math.sin(c.psi)*5,c.y+2.2,c.z+Math.cos(c.psi)*5);arrow.rotation.set(0,ang,0);
-   if(gEl){gEl.style.display='flex';const sv=gEl.querySelector&&gEl.querySelector('svg'),lb=gEl.querySelector&&gEl.querySelector('b'),rel=-(ang-c.psi)*180/Math.PI;if(sv&&sv.style)sv.style.transform='rotate('+rel.toFixed(1)+'deg)';const dt2=Math.round(d)+' '+Lc('м');if(lb&&gEl._d!==dt2){gEl._d=dt2;lb.textContent=dt2}}
+   arrow.visible=false;
+   if(gEl){gEl.style.display='flex';const sv=gEl.querySelector&&gEl.querySelector('svg'),lb=gEl.querySelector&&gEl.querySelector('b'),rel=-(ang-c.psi)*180/Math.PI;if(sv&&sv.style)sv.style.transform='rotate('+rel.toFixed(1)+'deg)';const dr=nav.len!=null&&nav.goal===goal?Math.max(d,nav.len):d,dt2=(dr>=1000?(dr/1000).toFixed(1)+' '+Lc('км'):Math.round(dr)+' '+Lc('м'));if(lb&&gEl._d!==dt2){gEl._d=dt2;lb.textContent=dt2}}
    if(d<9){run.k++;SND.ui('ok');if(run.k>=run.list.length){finish();return}}
    else if(run.t>run.m.lim){toast('⏱ '+Lc('Время вышло')+' — '+Lc(run.m.n));SND.ui('del');stopMis(1);return}
    const m=run.m,md=medalOf(m,run.t);
