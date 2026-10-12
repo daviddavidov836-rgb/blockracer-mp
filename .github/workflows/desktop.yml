@@ -1,0 +1,22 @@
+name: Desktop build
+on:
+  workflow_dispatch:
+  push:
+    paths: ['desktop/**']
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npx electron-builder --win --publish always -c.publish.provider=github -c.publish.owner=${{ github.repository_owner }} -c.publish.repo=${{ github.event.repository.name }} -c.publish.releaseType=release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
