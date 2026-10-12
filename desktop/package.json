@@ -18,7 +18,7 @@
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }],
       "icon": "build/icon.png",
-      "artifactName": "BlockRacer-${version}-${target}.${ext}"
+         "artifactName": "BlockRacer-${version}-setup.${ext}"
     },
     "nsis": { "oneClick": true, "perMachine": false, "createDesktopShortcut": true, "shortcutName": "Block Racer" },
     "portable": { "artifactName": "BlockRacer-${version}-portable.exe" },
