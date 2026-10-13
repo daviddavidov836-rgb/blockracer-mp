@@ -1469,7 +1469,11 @@ const hf=v=>Math.round(v*2)/2;
 const FULL=t=>t=='w';
 /* единая сетка ½ с центральной клеткой: центры блоков по X/Z — кратны 0,5 (есть клетка ровно на оси) */
 const L5=v=>Math.round(v*2)/2,Y5=v=>Math.floor(v*2+1e-9)/2+.25,OUT=(v,sg)=>sg>0?Math.ceil(v*2-1e-6)/2:Math.floor(v*2+1e-6)/2;
-function cellFor(t){if(ty=='w')return wheelCell(t);if(ty=='a'&&t.b&&t.b.t=='w'){const w=t.b,f=arcFor(w),o={x:L5(w.x),y:f.y,z:L5(w.z),s:1,t:'a'};if(f.ar>ARC_R)o.ar=f.ar;return o}const c={},big=FULL(ty),h=big?.5:.25;
+/* уменьшенная деталь (из шаблона) прижимается к той грани, на которую ставим: под потолок — верхом, к стенке — боком, на пол — низом */
+function cellFor(t){const c=cellFor0(t);try{const tp=tpl&&tpl.t==ty&&tpl.e?tpl:null;if(!c||!tp||ty=='w'||ty=='a'||!tp.e.some(v=>v))return c;
+  const B=box({...c,t:ty,e:tp.e}),n=t.n,nc={...c};if(n){const i={x:0,y:1,z:2}[n.ax],d=n.sg>0?n.pl-B[2*i]:n.pl-B[2*i+1];nc[n.ax]=R3(c[n.ax]+d)}else nc.y=R3(c.y-B[2]);
+  const okN=ok({...nc,t:ty,e:tp.e});return okN||!ok({...c,t:ty,e:tp.e})?nc:c}catch(e){return c}}
+function cellFor0(t){if(ty=='w')return wheelCell(t);if(ty=='a'&&t.b&&t.b.t=='w'){const w=t.b,f=arcFor(w),o={x:L5(w.x),y:f.y,z:L5(w.z),s:1,t:'a'};if(f.ar>ARC_R)o.ar=f.ar;return o}const c={},big=FULL(ty),h=big?.5:.25;
  c.x=L5(t.q.x);c.z=L5(t.q.z);c.y=big?L5(t.q.y):Y5(t.q.y);
  if(t.n){const a=t.n.ax,v=t.n.pl+t.n.sg*h;c[a]=a=='y'?v:OUT(v,t.n.sg)}else c.y=h;
  if(ty=='a'&&t.n&&t.n.ax=='z')c.z=L5(t.n.pl+t.n.sg*.75);
@@ -1632,7 +1636,7 @@ let az=Math.PI+.6,el=.55,dist=14;const camT={x:0,y:0,z:0};let rpan=null;
 const ptrs=new Map();let tp=null,pd=0;const pdist=()=>{const a=[...ptrs.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 let dragEx=null,drag=null;   // перетаскивание выбранной детали мышью/пальцем
-function dragCell(e){const t=target(e);if(!t)return null;const ty0=ty,tp0=tpl;ty=drag.b.t;tpl=null;let c=null;try{c=cellFor(t)}catch(er){}ty=ty0;tpl=tp0;if(!c)return null;
+function dragCell(e){const t=target(e);if(!t)return null;const ty0=ty,tp0=tpl;ty=drag.b.t;tpl=drag.b.e?{t:drag.b.t,e:drag.b.e}:null;let c=null;try{c=cellFor(t)}catch(er){}ty=ty0;tpl=tp0;if(!c)return null;
  const nb={...drag.b,x:c.x,y:c.y,z:c.z};let g=ok(nb,drag.ex);if(g&&drag.m){const bx=box(nb);g=!(bx[0]<-1e-6&&bx[1]>1e-6)&&ok({...drag.m,x:-nb.x,y:nb.y,z:nb.z},drag.ex)}return g?nb:{...nb,bad:1}}
 cv.addEventListener('pointerdown',e=>{if(mode!='edit')return;cv.setPointerCapture(e.pointerId);
  if(e.button==0&&tool=='sel'&&selS&&selS.t!='w'&&!(document.body.classList.contains&&document.body.classList.contains('gopen'))){const t=target(e);if(t&&t.b===selS){const m=strMate(selS);drag={id:e.pointerId,b:selS,ex:[selS,m].filter(Boolean),m,nb:null,x:e.clientX,y:e.clientY,on:false};dragEx=drag.ex;return}}
