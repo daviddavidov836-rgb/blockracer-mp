@@ -1738,10 +1738,10 @@ let selS=null;
 /* у скоса «узкая» сторона по оси: там меньше вершин → тянем туда, высокий край остаётся на месте (скос становится пологим) */
 function taper(b,ai){if(!SH[b.t])return 0;const k=kOf(b),V=SH[b.t].V.map(v=>xf(v,k&3,k>>2));let n=0,p=0;V.forEach(v=>{if(v[ai]<-.5)n++;else if(v[ai]>.5)p++});return p<n?1:n<p?-1:0}
 function strMate(b){return sym&&Math.abs(b.x)>1e-6?blocks.find(o=>o!==b&&o.t==b.t&&!o.s==!b.s&&Math.abs(o.x+b.x)<1e-6&&Math.abs(o.y-b.y)<1e-6&&Math.abs(o.z-b.z)<1e-6)||null:null}
-function strTry(b,ax,d){const ai={x:0,y:1,z:2}[ax],e=(XE(b)||[0,0,0,0,0,0]).slice(),i0=ai*2,tp=taper(b,ai),m=strMate(b);let sides;
+function strTry(b,ax,d){const stp=(typeof mvK=='number'&&mvK>0?mvK:.5);/* шаг растяжения = выбранный шаг (½, ¼, ⅛ блока) */const ai={x:0,y:1,z:2}[ax],e=(XE(b)||[0,0,0,0,0,0]).slice(),i0=ai*2,tp=taper(b,ai),m=strMate(b);let sides;
  if(d>0){if(e[i0]+e[i0+1]>=EMAX)return{err:Lc('Максимальная длина — ')+(EMAX+1)};
-  const pref=tp||(ax=='x'&&Math.abs(b.x)>1e-6?Math.sign(b.x):(e[i0]<=e[i0+1]?-1:1));sides=[pref,-pref]}
- else{const L=1+e[i0]+e[i0+1];if(L<1+1e-6)return{err:Lc('Короче уже нельзя — тоньше делается кнопками «Толщина»')};d=-Math.min(1,L-.25);sides=e[i0]>e[i0+1]?[-1,1]:e[i0+1]>e[i0]?[1,-1]:[-(tp||1),tp||1]}   // укорачиваем на 1 (после «Толщины» длина дробная — растянул и укоротил = вернулся к прежней)
+  const pref=tp||(ax=='x'&&Math.abs(b.x)>1e-6?Math.sign(b.x):(e[i0]<=e[i0+1]?-1:1));sides=[pref,-pref];d=Math.min(stp,EMAX-(e[i0]+e[i0+1]))}
+ else{const L=1+e[i0]+e[i0+1];if(L<.25+stp-1e-6&&L<1+1e-6)return{err:Lc('Короче уже нельзя — тоньше делается кнопками «Толщина»')};d=-Math.min(stp,L-.25);sides=e[i0]>e[i0+1]?[-1,1]:e[i0+1]>e[i0]?[1,-1]:[-(tp||1),tp||1]}   // укорачиваем на 1 (после «Толщины» длина дробная — растянул и укоротил = вернулся к прежней)
  let last=null;for(const sg of sides){const j=i0+(sg>0?1:0);if(d<0&&e[j]+d<-1+.25-1e-6)continue;const ee=e.slice();ee[j]=Math.round((ee[j]+d)*8)/8;const nb={...b,e:ee},nm=m?{...m,e:eMir(ee)}:null,ex=[b,m].filter(Boolean);
   if(d>0&&(!ok(nb,ex)||nm&&(!ok(nm,ex)||ovl(nb,nm)))){last={err:Lc('Дальше нельзя — мешает блок или край'),nb};continue}
   if(d>0&&CR&&CR.on){const need=(VOL(nb)-VOL(b))+(nm?VOL(nm)-VOL(m):0);if(CR.left(b.t)<need)return{err:Lc('Не хватает блоков — купи ещё в гараже 🛒'),nb}}
@@ -1933,7 +1933,7 @@ function pickDz(v){if(v&&!WG.inLib(v)&&WG.get(v)){WG.put(WG.get(v),true);toast(L
 {const e=$('wdzI');if(e)e.onclick=()=>openImport()}
 {const e=$('wdzE');if(e)e.onclick=()=>WE.open()}
 const mkUpd=()=>{try{document.querySelectorAll('#sset [data-mk]').forEach(b=>b.classList.toggle('on',+b.dataset.mk==mvK))}catch(e){}};
-try{document.querySelectorAll('#sset [data-mk]').forEach(b=>{b.title=Lc('Шаг сдвига: доля блока');b.onclick=()=>{mvK=+b.dataset.mk;try{localStorage.setItem('blockracer_mvk',String(mvK))}catch(e){}mkUpd();SND.ui('click');toast(Lc('Шаг сдвига')+': '+b.textContent+' '+Lc('блока'))}});mkUpd()}catch(e){}
+try{document.querySelectorAll('#sset [data-mk]').forEach(b=>{b.title=Lc('Шаг сдвига и растяжения: доля блока');b.onclick=()=>{mvK=+b.dataset.mk;try{localStorage.setItem('blockracer_mvk',String(mvK))}catch(e){}mkUpd();SND.ui('click');toast(Lc('Шаг сдвига')+': '+b.textContent+' '+Lc('блока'))}});mkUpd()}catch(e){}
 document.querySelectorAll('#sset [data-st]').forEach(b=>b.onclick=()=>strAxis(b.dataset.st[0],+b.dataset.st.slice(1)));document.querySelectorAll('#sset [data-sm]').forEach(b=>{b.textContent=Lc(b.textContent);b.onclick=()=>strMove(b.dataset.sm[0],+b.dataset.sm.slice(1))});{const e=$('smvt');if(e)e.textContent=Lc('Сдвинуть')}
 document.querySelectorAll('#wnud button').forEach(b=>b.onclick=()=>nudgeW(b.dataset.wn[0],b.dataset.wn[1]=='+'?1:-1));
 COLS.forEach((c,i)=>{const b=mkBtn('',()=>{ci=i;sync()},'sw');b.style.background='#'+c.toString(16).padStart(6,'0');b.dataset.c=i;$('cols').appendChild(b)});
