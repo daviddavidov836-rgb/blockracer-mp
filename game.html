@@ -434,7 +434,7 @@ body.photo #hud,body.photo #top,body.photo #menu,body.photo #vig,body.photo #spv
 #phop .phs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 14px}#phop .phs label{display:flex;flex-direction:column;font-size:11.5px;opacity:.9}#phop .phs input{width:100%;accent-color:#ffb020}
 #phop .phf,#phop .phb{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}#phop button{background:#1d2433;color:#e8eefc;border:1px solid #ffffff22;border-radius:10px;padding:7px 11px;font:600 13px system-ui;cursor:pointer}#phop button.on{background:#ffb020;color:#111;border-color:#ffb020}#phop button.pri{background:linear-gradient(180deg,#ffc24a,#f39a12);color:#1a1205;border:0;font-weight:800}#phop button:disabled{opacity:.45}
 #phfl{position:absolute;inset:0;background:#fff;z-index:40;pointer-events:none;animation:phfl .45s ease-out forwards}@keyframes phfl{from{opacity:.85}to{opacity:0}}
-#recb{display:none;position:absolute;top:72px;left:50%;transform:translateX(-50%);z-index:45;align-items:center;gap:8px;background:rgba(20,8,10,.85);color:#fff;border:1px solid #ff4d4d88;border-radius:999px;padding:6px 14px;font:800 14px system-ui;cursor:pointer;font-variant-numeric:tabular-nums}#recb i{width:11px;height:11px;border-radius:50%;background:#ff3030;animation:blink .8s infinite alternate}#recb b{margin-left:4px}
+
 @media (max-width:900px),(max-height:600px){#phop{max-height:58vh;padding:7px 8px;bottom:6px}#phop .phs{grid-template-columns:repeat(2,1fr)}#phop .phh{display:none}#phop .ph1 b{flex:1}}@media (max-width:480px){#phop .pht,#phop .ph1 button span{display:none}}
 </style></head><body>
 <div id="app" data-m="edit">
@@ -649,7 +649,10 @@ const sc=sun.shadow.camera;sc.left=sc.bottom=-40;sc.right=sc.top=40;sc.far=160;s
 const QA={s:1,ema:16.7,lo:0,hi:0,sh:2048,
  base(){if(this.rec)return this.rec;const w=$('view').clientWidth||1,h=$('view').clientHeight||1,pr=Math.min(devicePixelRatio||1,TCH0?1.5:2);return Math.min(pr,Math.sqrt(2.6e6/(w*h)))},
  apply(){const pr=Math.max(.5,this.base()*(this.rec?1:this.s));if(Math.abs((R.getPixelRatio?R.getPixelRatio():0)-pr)>.01){R.setPixelRatio(pr);const w=$('view').clientWidth,h=$('view').clientHeight;if(w&&h)R.setSize(w,h)}},
- tick(ms){if(document.hidden||ms>250||this.rec)return;this.ema+=(ms-this.ema)*.05;
+ tick(ms){if(document.hidden||ms>250)return;
+  if(this.rec){this.ema+=(ms-this.ema)*.05;   /* во время записи: если FPS проседает — плавно снижаем разрешение записи */
+   if(this.ema>(this.recT||26)){if(++this.lo>45&&this.rec>.55){this.lo=0;this.ema=16.7;this.rec=Math.max(.5,this.rec*.85);this.apply();if(!this.recW){this.recW=1;try{toast('⚠ '+Lc('Запись тормозит — разрешение записи снижено'))}catch(e){}}}}else this.lo=Math.max(0,this.lo-1);return}
+  this.ema+=(ms-this.ema)*.05;
   if(this.ema>21){if(++this.lo>90){this.lo=0;this.ema=16.7;if(this.s>.55){this.s=Math.max(.5,this.s*.85);this.cool=performance.now()+60000;this.apply()}else if(this.sh>1024){this.sh=1024;sun.shadow.mapSize.set(1024,1024);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}}}else this.lo=Math.max(0,this.lo-1);
   if(this.ema<16.2&&this.s<1&&performance.now()>(this.cool||0)){if(++this.hi>600){this.hi=0;this.s=Math.min(1,this.s*1.1);this.apply()}}else this.hi=0}};
 function resize(){const w=$('view').clientWidth,h=$('view').clientHeight;if(!w||!h)return;R.setPixelRatio(Math.max(.5,QA.base()*(QA.rec?1:QA.s)));R.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
@@ -1268,7 +1271,7 @@ const WG=(()=>{
 
 /* ===== ФОТО-РЕЖИМ и ЗАПИСЬ ВИДЕО =====
    📷 — игра на паузе, камера свободно облетает машину (тяни — вращать, колесо/щипок — ближе/дальше), ползунки: зум, наклон кадра, фильтры.
-   📸 Снимок — картинка в высоком разрешении сохраняется на устройство. 🎬 Запись — видео экрана со звуком (webm/mp4). */
+   📸 Снимок — картинка в высоком разрешении сохраняется на устройство. */
 const PHO=(()=>{let on=false,ov=null,pan=null,az=0,el=.18,dist=7,fov=50,roll=0,ty=.8,orbit=false,fov0=55,sv={};
  const F={br:1,ct:1,sa:1,vg:.35,fx:'none'};const FX={none:'',bw:'grayscale(1)',sep:'sepia(.85)',warm:'sepia(.35) saturate(1.25) hue-rotate(-10deg)',cold:'saturate(.9) hue-rotate(18deg) brightness(1.03)',film:'contrast(1.15) saturate(.85) sepia(.18)'};
  const filt=()=>`brightness(${F.br}) contrast(${F.ct}) saturate(${F.sa}) ${FX[F.fx]||''}`.trim();
@@ -1291,14 +1294,14 @@ const PHO=(()=>{let on=false,ov=null,pan=null,az=0,el=.18,dist=7,fov=50,roll=0,t
  const gv=k=>k in F?F[k]:({dist,ty,fov,roll})[k],setv=(k,v)=>{if(k in F)F[k]=v;else if(k=='dist')dist=v;else if(k=='ty')ty=v;else if(k=='fov')fov=v;else if(k=='roll')roll=v;applyFx()};
  let ex=null;
  function ui(){if(ex===null)ex=innerWidth>900&&innerHeight>600;pan.classList.toggle('ex',ex);pan.innerHTML=`<div class="ph1"><b>📷 <span class="pht">${Lc('Фото-режим')}</span></b><span class="phh">${Lc('Тяни по экрану — облёт, колесо/щипок — ближе')}</span>
-  <button id="phS" class="pri">📸 <span>${Lc('Снимок')}</span></button><button id="phV" class="${REC.on?'rec':''}">${REC.on?'⏹ <span>'+Lc('Стоп')+'</span>':'🎬 <span>'+Lc('Видео')+'</span>'}</button><button id="phG" title="${Lc('Записать заезд')}" ${REC.on?'disabled':''}>🏁🎬</button><button id="phA" title="${Lc('Звук в видео')}" class="${REC.snd?'on':''}" ${REC.on?'disabled':''}>${REC.snd?'🔊':'🔇'}</button><button id="phQ" title="${Lc('Качество видео')}" ${REC.on?'disabled':''}>🎞 ${REC.qName()}</button>${canShare()?`<button id="phSh" ${lastBlob?'':'disabled'} title="${Lc('Поделиться')}">📤</button>`:''}<button id="phE" class="${ex?'on':''}" title="${Lc('Настройки кадра')}">🎛</button><button id="phX">✕</button></div>
+  <button id="phS" class="pri">📸 <span>${Lc('Снимок')}</span></button>${canShare()?`<button id="phSh" ${lastBlob?'':'disabled'} title="${Lc('Поделиться')}">📤</button>`:''}<button id="phE" class="${ex?'on':''}" title="${Lc('Настройки кадра')}">🎛</button><button id="phX">✕</button></div>
   <div class="phx"><div class="phs">${SLf().map(([k,n,a,b,st])=>`<label><span>${n}</span><input type="range" data-k="${k}" min="${a}" max="${b}" step="${st}" value="${gv(k)}"></label>`).join('')}</div>
   <div class="phf">${[['none',Lc('Обычный')],['bw',Lc('Ч/Б')],['sep',Lc('Сепия')],['warm',Lc('Тёплый')],['cold',Lc('Холодный')],['film',Lc('Кино')]].map(([k,n])=>`<button data-fx="${k}" class="${F.fx==k?'on':''}">${n}</button>`).join('')}<button id="phO" class="${orbit?'on':''}">⟳ ${Lc('Облёт')}</button><button id="phR0">↺ ${Lc('Сброс')}</button></div></div>`;
   $('phE').onclick=()=>{ex=!ex;ui()};
   pan.querySelectorAll('input[data-k]').forEach(i=>i.oninput=()=>setv(i.dataset.k,+i.value));
   pan.querySelectorAll('[data-fx]').forEach(b=>b.onclick=()=>{F.fx=b.dataset.fx;applyFx();ui()});
   $('phX').onclick=()=>toggle(false);$('phO').onclick=()=>{orbit=!orbit;ui()};$('phR0').onclick=()=>{reset();ui()};
-  $('phS').onclick=()=>shot();$('phV').onclick=()=>{if(REC.on)REC.stop();else REC.start();ui()};$('phG').onclick=()=>{toggle(false);if(!REC.on)REC.start()};$('phA').onclick=()=>{REC.snd=!REC.snd;toast(REC.snd?'🔊 '+Lc('Видео будет со звуком игры'):'🔇 '+Lc('Видео будет без звука'));ui()};$('phQ').onclick=()=>{REC.cycleQ();toast('🎞 '+Lc('Качество видео')+': '+REC.qName()+(REC.qual=='1440'?' — '+Lc('тяжело для слабых устройств'):''));ui()};const sh=$('phSh');if(sh)sh.onclick=share}
+  $('phS').onclick=()=>shot();const sh=$('phSh');if(sh)sh.onclick=share}
  function syncUI(){if(!pan)return;pan.querySelectorAll('input[data-k]').forEach(i=>{if(document.activeElement!==i)i.value=gv(i.dataset.k)})}
  function reset(){az=(car?car.psi:0)+Math.PI+.6;el=.18;dist=7;fov=50;roll=0;ty=.8;Object.assign(F,{br:1,ct:1,sa:1,vg:.35,fx:'none'});applyFx()}
  function toggle(v){v=v===undefined?!on:!!v;if(v===on)return;if(v&&(mode!='drive'||!car)){toast(Lc('Фото-режим работает в поездке — нажми 🏁 Ехать'));return}
@@ -1314,30 +1317,8 @@ const PHO=(()=>{let on=false,ov=null,pan=null,az=0,el=.18,dist=7,fov=50,roll=0,t
    x.font=`800 ${Math.round(h*.022)}px system-ui,sans-serif`;x.textAlign='right';x.textBaseline='bottom';x.fillStyle='rgba(255,255,255,.75)';x.shadowColor='rgba(0,0,0,.6)';x.shadowBlur=8;x.fillText('BLOCK RACER',w-h*.025,h-h*.02);
    const b=await new Promise(r=>c2.toBlob(r,'image/png'));if(!b)throw 0;saveBlob(b,'BlockRacer_'+stamp()+'.png');SND.ui('ok');const f=document.createElement('div');f.id='phfl';(($('app')||document.body)).appendChild(f);setTimeout(()=>f.remove(),450);
    toast('📸 '+Lc('Снимок сохранён на устройство')+' ('+w+'×'+h+')');ui()}catch(e){toast('⚠ '+Lc('Не получилось сделать снимок'))}}
- setTimeout(()=>{try{REC.sub(()=>{if(on&&pan)ui()})}catch(e){}},0);
  try{addEventListener('keydown',e=>{if(e.code=='KeyP'&&!e.repeat&&!(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))&&mode=='drive'){toggle();e.preventDefault()}if(e.code=='Escape'&&on)toggle(false)})}catch(e){}
  return{get on(){return on},toggle,frame,shot,saveBlob,stamp}})();
-/* запись видео: картинка игры + звук (через MediaRecorder), файл сохраняется на устройство */
-const REC=(()=>{let mr=null,t0=0,badge=null,tm=null;
- let snd=true,qual=TCH0?'720':'1080';try{snd=localStorage.getItem('blockracer_recsnd')!=='0';const q=localStorage.getItem('blockracer_recq');if(['scr','720','1080','1440'].includes(q))qual=q}catch(e){}
- const QN={scr:Lc('Экран'),720:'720p',1080:'1080p',1440:'1440p'};const subs=new Set();const emit=()=>{subs.forEach(f=>{try{f()}catch(e){}});ui()};
- function pickType(){const L=snd?['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']:['video/mp4;codecs=avc1.640028','video/mp4;codecs=avc1.42E01E','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];if(typeof MediaRecorder=='undefined')return null;for(const t of L)try{if(MediaRecorder.isTypeSupported(t))return t}catch(e){}return ''}
- /* качество: на время записи рендер идёт в нужном разрешении (авто-снижение качества отключается) */
- function hiRes(on){try{if(on){const h=$('view').clientHeight||720,d=devicePixelRatio||1,tgt=qual=='scr'?Math.max(d,1):(+qual)/h;QA.rec=Math.max(.75,Math.min(3,tgt))}else QA.rec=null;QA.apply()}catch(e){}}
- function start(){if(mr&&mr.state=='recording')return;const tp=pickType();if(tp===null||!R.domElement.captureStream){toast('⚠ '+Lc('Запись видео не поддерживается этим браузером'));return}
-  try{hiRes(true);SND.init();const vs=R.domElement.captureStream(60),st=new MediaStream(vs.getVideoTracks());let au=false;
-   if(snd){try{const as=SND.stream();if(as){as.getAudioTracks().forEach(t=>{st.addTrack(t);au=true})}}catch(e){}}
-   const px=(R.domElement.width||1280)*(R.domElement.height||720),vb=Math.round(Math.max(6e6,Math.min(24e6,px*60*.11)));
-   const rec=new MediaRecorder(st,tp?{mimeType:tp,videoBitsPerSecond:vb,audioBitsPerSecond:192000}:{videoBitsPerSecond:vb}),ch=[],ext=/mp4/.test(rec.mimeType||tp)?'mp4':'webm';
-   rec.ondataavailable=e=>{if(e.data&&e.data.size)ch.push(e.data)};
-   rec.onstop=()=>{const b=new Blob(ch,{type:rec.mimeType||'video/webm'});if(mr===rec)mr=null;hiRes(false);if(b.size>1000){PHO.saveBlob(b,'BlockRacer_'+PHO.stamp()+'.'+ext);toast('🎬 '+Lc('Видео сохранено на устройство')+' ('+(b.size/1048576).toFixed(1)+' '+Lc('МБ')+(au?'':' · '+Lc('без звука'))+')')}emit()};
-   rec.onerror=()=>{if(mr===rec)mr=null;hiRes(false);toast('⚠ '+Lc('Запись прервалась'));emit()};
-   mr=rec;rec.start(1000);t0=performance.now();emit();SND.ui('ok');toast('🔴 '+Lc('Запись')+' '+(R.domElement.width||'')+'×'+(R.domElement.height||'')+(au?' 🔊':' 🔇')+' — '+Lc('останови кнопкой ⏹ сверху'))}catch(e){mr=null;hiRes(false);toast('⚠ '+Lc('Не удалось начать запись'));emit()}}
- function stop(){const r=mr;if(!r)return;mr=null;try{if(r.state!='inactive')r.stop()}catch(e){hiRes(false)}emit()}
- function ui(){if(!badge){badge=document.createElement('button');badge.id='recb';badge.onclick=()=>stop();(($('app')||document.body)).appendChild(badge)}
-  clearInterval(tm);if(mr){badge.style.display='flex';const f=()=>{const s=Math.floor((performance.now()-t0)/1000);badge.innerHTML='<i></i>REC '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+(snd?' 🔊':' 🔇')+' <b>⏹</b>'};f();tm=setInterval(f,500)}else badge.style.display='none'}
- return{start,stop,get on(){return !!(mr&&mr.state=='recording')},get snd(){return snd},set snd(v){snd=!!v;try{localStorage.setItem('blockracer_recsnd',snd?'1':'0')}catch(e){}},
-  get qual(){return qual},cycleQ(){const L=['scr','720','1080','1440'];qual=L[(L.indexOf(qual)+1)%L.length];try{localStorage.setItem('blockracer_recq',qual)}catch(e){}return qual},qName:k=>QN[k||qual],sub:f=>subs.add(f)}})();
 /* ===== ЗЕРКАЛО ЗАДНЕГО ВИДА (гонка с соперниками): вторая камера смотрит назад, картинка — в рамке сверху; тап — свернуть/развернуть ===== */
 const MIR=(()=>{let rt=null,qs=null,qc=null,mc=null,fr=null,on=true,k=0;const sz=new T.Vector2();try{on=localStorage.getItem('blockracer_mirror')!=='0'}catch(e){}
  function init(){if(rt)return true;try{rt=new T.WebGLRenderTarget(432,120);mc=new T.PerspectiveCamera(40,432/120,.3,420);qs=new T.Scene();qc=new T.OrthographicCamera(-1,1,1,-1,0,1);
@@ -1411,6 +1392,25 @@ function mk(b){const g=new T.Group();g.position.set(b.x,b.y+(b.t=='a'?ADIM(AR(b)
  return g}
 function buildCar(bl){const g=new T.Group(),ws=[],fl=[],ex=[],lm={};bl.forEach(b=>{const m=mk(b);if(b.t!='w')m.position.y+=cfg.clr;g.add(m);if(b.t=='w')ws.push(m);if(b.t=='r')fl.push(m.userData.fl);if(b.t=='x')ex.push(m);
   const wk=(o,f)=>{f(o);(o.children||[]).forEach(q=>wk(q,f))};wk(m,o=>{const l=o.isMesh&&o.material&&o.material.userData&&o.material.userData.lt;if(!l)return;const k=l==4?(b.x>.01?'4L':b.x<-.01?'4R':'4C'):''+l;o.material=lm[k]||(lm[k]=o.material.clone())})});return{g,ws,fl,ex,lm}}
+/* оптимизация: неподвижные детали машины склеиваются в одну сетку на материал (сотни деталей → десятки вызовов отрисовки).
+   Колёса, пламя и всё, что двигается/прячется, остаются отдельными. */
+function mDisp(o){try{o&&o.traverse&&o.traverse(m=>{if(m.userData&&m.userData.merged&&m.geometry)m.geometry.dispose()})}catch(e){}}
+function carMerge(g,keep){try{if(!g||!g.traverse||!T.Matrix4)return 0;g.updateMatrixWorld(true);const skip=new Set();(keep||[]).forEach(k=>{if(k&&k.traverse)k.traverse(o=>skip.add(o))});
+ const inv=new T.Matrix4().copy(g.matrixWorld).invert(),mw=new T.Matrix4(),by=new Map(),kill=[],OK=new Set(['position','normal','uv']);
+ const lns=[];g.traverse(o=>{if(o.isLineSegments&&typeof EDGM!='undefined'&&o.material===EDGM){lns.push(o);return}if(!o.isMesh||o===g||skip.has(o)||!o.visible||o.isInstancedMesh||o.isSkinnedMesh||!o.material||Array.isArray(o.material)||o.material===PM)return;const ge0=o.geometry;
+  if(!ge0||!ge0.attributes||!ge0.attributes.position||Object.keys(ge0.attributes).some(k=>!OK.has(k))||(ge0.groups&&ge0.groups.length>1)||(ge0.morphAttributes&&Object.keys(ge0.morphAttributes).length))return;
+  for(let p=o.parent;p&&p!==g;p=p.parent)if(!p.visible)return;
+  try{const ge=ge0.index?ge0.toNonIndexed():ge0.clone();mw.multiplyMatrices(inv,o.matrixWorld);ge.applyMatrix4(mw);
+   if(mw.determinant()<0){['position','normal','uv'].map(k=>ge.attributes[k]).filter(Boolean).forEach(a=>{const it=a.itemSize,ar=a.array;for(let t=0;t+2<a.count;t+=3)for(let q=0;q<it;q++){const i1=(t+1)*it+q,i2=(t+2)*it+q,v=ar[i1];ar[i1]=ar[i2];ar[i2]=v}})}
+   const key=o.material.uuid+'|'+(o.castShadow?1:0)+(o.receiveShadow?1:0)+'|'+(o.renderOrder||0);let L=by.get(key);if(!L)by.set(key,L={m:o.material,cs:o.castShadow,rs:o.receiveShadow,ro:o.renderOrder||0,g:[]});L.g.push(ge);kill.push(o)}catch(e){}});
+ lns.forEach(o=>{if(o.parent)o.parent.remove(o)});   /* рёбра блоков нужны только в редакторе */
+ if(kill.length<2){by.forEach(L=>L.g.forEach(ge=>ge.dispose&&ge.dispose()));return 0}
+ kill.forEach(o=>{if(o.parent)o.parent.remove(o)});
+ by.forEach(L=>{let n=0;L.g.forEach(ge=>n+=ge.attributes.position.count);const P=new Float32Array(n*3),Nn=new Float32Array(n*3),U=new Float32Array(n*2);let o=0;
+  L.g.forEach(ge=>{const p=ge.attributes.position,q=ge.attributes.normal,u=ge.attributes.uv;P.set(p.array.subarray(0,p.count*3),o*3);if(q)Nn.set(q.array.subarray(0,p.count*3),o*3);if(u)U.set(u.array.subarray(0,p.count*2),o*2);o+=p.count;ge.dispose&&ge.dispose()});
+  const m=new T.BufferGeometry();m.setAttribute('position',new T.BufferAttribute(P,3));m.setAttribute('normal',new T.BufferAttribute(Nn,3));m.setAttribute('uv',new T.BufferAttribute(U,2));
+  const me=new T.Mesh(m,L.m);me.castShadow=L.cs;me.receiveShadow=L.rs;me.renderOrder=L.ro;me.userData.own=1;me.userData.merged=1;g.add(me)});
+ return kill.length-by.size}catch(e){console.warn('carMerge',e);return 0}}
 /* фары в поездке: стоп-сигнал, задний ход, поворотники (+X машины — левый борт) */
 /* ===== АЭРОДИНАМИКА: «продувка» машины лучами =====
    Сетка лучей ~0.2 м летит на машину спереди (набегающий поток) и сзади (зона разрежения).
@@ -1857,10 +1857,14 @@ function grpVis(){grpClean();GV.children.slice().forEach(c=>GV.remove(c));const 
 function grpAdd(b,on){const L=[b];if(sym){const m=b.t=='w'?mateW(b):strMate(b);if(m)L.push(m)}L.forEach(o=>on?GRP.add(o):GRP.delete(o))}
 function grpToggle(b){grpAdd(b,!GRP.has(b));SND.ui('click');sync()}
 function grpList(){grpClean();return[...GRP]}
-function grpMove(ax,d){const L=grpList();if(!L.length){toast(Lc('Сначала выдели детали'));return}const st=mvK*d,Q=v=>Math.round(v*1024)/1024;
- const mir=ax=='x'&&sym&&L.every(b=>Math.abs(b.x)>1e-6)&&L.some(b=>b.x<0)&&L.some(b=>b.x>0);   /* симметричная группа по ширине — половинки расходятся/сходятся зеркально */
- const N=L.map(b=>({...b,[ax]:Q(b[ax]+(mir&&b.x<0?-st:st))}));
- if(N.some(n=>!ok(n,L))||mir&&N.some((n,i)=>N.some((m,j)=>j>i&&ovl(n,m)))){toast(Lc('Туда нельзя — мешает деталь или край площадки'));SND.ui('del');return}
+/* зеркальная пара детали (при включённой симметрии): та же деталь на другой стороне */
+function grpMate(b){if(Math.abs(b.x)<1e-6)return null;return blocks.find(m=>m!==b&&m.t===b.t&&Math.abs(m.x+b.x)<1e-6&&Math.abs(m.y-b.y)<1e-6&&Math.abs(m.z-b.z)<1e-6&&(m.s||0)===(b.s||0))||null}
+function grpMates(L){if(!sym)return[];const S=new Set(L),out=[];L.forEach(b=>{const m=grpMate(b);if(m&&!S.has(m)&&!out.includes(m))out.push(m)});return out}
+function grpMove(ax,d){const L0=grpList();if(!L0.length){toast(Lc('Сначала выдели детали'));return}const st=mvK*d,Q=v=>Math.round(v*1024)/1024;
+ const mir=ax=='x'&&sym&&L0.every(b=>Math.abs(b.x)>1e-6)&&L0.some(b=>b.x<0)&&L0.some(b=>b.x>0);   /* симметричная группа по ширине — половинки расходятся/сходятся зеркально */
+ const MT=grpMates(L0),L=L0.concat(MT),side=L0.length?Math.sign(L0.reduce((a,b)=>a+b.x,0))||1:1;   /* симметрия: зеркальные копии деталей группы двигаются вместе с ней (по ширине — в другую сторону) */
+ const N=L.map((b,i)=>{const isM=i>=L0.length,dx=ax=='x'?(isM?-st:(mir&&b.x<0?-st:st)):st;return{...b,[ax]:Q(b[ax]+dx)}});
+ if(N.some(n=>!ok(n,L))||(mir||MT.length)&&N.some((n,i)=>N.some((m,j)=>j>i&&ovl(n,m)))){toast(Lc('Туда нельзя — мешает деталь или край площадки'));SND.ui('del');return}
  snap();L.forEach((b,i)=>{b[ax]=N[i][ax]});refresh();sync();SND.ui('click')}
 function grpCopy(){const L=grpList();if(!L.length)return;if(CR&&CR.on){const need={};L.forEach(b=>need[b.t]=(need[b.t]||0)+1);const bad=Object.keys(need).find(k=>CR.left(k)<need[k]);if(bad){toast(Lc('Не хватает деталей для копии')+': '+BT[bad].n);return}}
  let lo=1e9,hi=-1e9;L.forEach(b=>{const x=box(b);lo=Math.min(lo,x[2]);hi=Math.max(hi,x[3])});const tries=[['y',hi-lo],['z',1],['z',-1],['x',1],['x',-1],['z',2],['z',-2]];
@@ -1869,8 +1873,8 @@ function grpCopy(){const L=grpList();if(!L.length)return;if(CR&&CR.on){const nee
 function grpKey(code,sh){const D={KeyW:['z',1],ArrowUp:['z',1],KeyS:['z',-1],ArrowDown:['z',-1],KeyA:['x',1],ArrowLeft:['x',1],KeyD:['x',-1],ArrowRight:['x',-1],KeyE:['y',1],PageUp:['y',1],KeyQ:['y',-1],PageDown:['y',-1]}[code];
  if(D){const k0=mvK;if(sh)mvK=.125;grpMove(D[0],D[1]);mvK=k0;return true}
  if(code=='Delete'||code=='Backspace'){grpDel();return true}if(code=='Escape'){GRP.clear();sync();return true}return false}
-function grpDel(){const L=grpList();if(!L.length)return;snap();blocks=blocks.filter(b=>!GRP.has(b));GRP.clear();refresh();sync();SND.ui('del');toast('🗑 '+Lc('Удалено деталей')+': '+L.length)}
-function grpPaint(){const L=grpList().filter(b=>b.t!='w');if(!L.length)return;snap();L.forEach(b=>b.c=ci);refresh();sync();SND.ui('place')}
+function grpDel(){const L=grpList();if(!L.length)return;const MT=new Set(grpMates(L));snap();blocks=blocks.filter(b=>!GRP.has(b)&&!MT.has(b));GRP.clear();refresh();sync();SND.ui('del');toast('🗑 '+Lc('Удалено деталей')+': '+L.length)}
+function grpPaint(){const L=grpList().filter(b=>b.t!='w');if(!L.length)return;snap();L.concat(grpMates(L)).forEach(b=>b.c=ci);refresh();sync();SND.ui('place')}
 function grpSame(){const L=grpList();if(!L.length){toast(Lc('Выдели хотя бы одну деталь нужного цвета'));return}const C=new Set(L.map(b=>b.c||0));blocks.forEach(b=>{if(b.t!='w'&&C.has(b.c||0))GRP.add(b)});SND.ui('click');sync()}
 /* рамка выделения (ПК: Shift + тянуть) */
 let gRect=null;const gRectEl=(()=>{try{const d=document.createElement('div');d.id='grect';($('view')||document.body).appendChild(d);return d}catch(e){return null}})();
@@ -2342,7 +2346,7 @@ function startDrive(){if(!blocks.length){toast(Lc('Сначала добавь �
  const dg=new T.BufferGeometry();dg.setAttribute('position',new T.BufferAttribute(new Float32Array(nw*114),3));dg.setAttribute('color',new T.BufferAttribute(new Float32Array(nw*114),3));
  const dbg=new T.LineSegments(dg,new T.LineBasicMaterial({vertexColors:true,depthTest:false}));dbg.frustumCulled=false;dbg.renderOrder=10;dbg.visible=dbgOn;scene.add(dbg);
  $('tel').innerHTML=wh.map(()=>'<div><i></i></div>').join('');
- const root=new T.Group();root.rotation.order='YXZ';bc.g.position.set(-cx0,-lift,-cz0);root.add(bc.g);scene.add(root);
+ const root=new T.Group();root.rotation.order='YXZ';carMerge(bc.g,[...bc.ws,...bc.fl.filter(Boolean)]);bc.g.position.set(-cx0,-lift,-cz0);root.add(bc.g);scene.add(root);
  const twG=L=>{const w=L.length?L.reduce((p,k)=>p+(k.wd||.8),0)/L.length:.8;return Math.max(.86,Math.min(1.15,1+.22*(w-.8)/.7))};/* ширина шин → сцепление оси: узкие ~0.8, широкие ~1.18 */
  /* реальный вес: распределение масс → инерция по рысканию; общая масса → нагрузка на шины (тяжёлым — чуть меньше сцепления), тормоза */
  const mIz=(()=>{let M=0,I=0;const cg2=cgOf();blocks.forEach(b=>{const r=b.r||.5,w=b.t=='w'?4*r*r*(b.wd||.8):BT[b.t].m*(b.s&&!FN(b.t)?.125:1)*MF(b)*VOL(b);M+=w;I+=w*((b.x-cg2.x)**2+(b.z-cg2.z)**2)});return M?I/M:1})(),mBox=Math.max(.3,((2*hl)**2+(2*hw)**2)/12);
@@ -2673,7 +2677,7 @@ function step(dt){HGon=true;HC.clear();const c=car,I=inp();c._acc=(c._acc||0)+dt
  sun.position.set(c.x+30,(c.y||0)+55,c.z+20);sun.target.position.set(c.x,(c.y||0),c.z);const kmh=Math.round(hs*3.6);if(kmh!==c._k){c._k=kmh;svEl.textContent=kmh}{const o1=Math.round(Math.min(1,Math.max(0,(hs-7)/24)*.95+(c.bst?.35:0))*25)/25,o2=Math.round(Math.min(.75,Math.max(0,(hs-6)/30)*.6+(c.bst?.2:0))*25)/25;if(o1!==c._o1){c._o1=o1;fxEl.style.opacity=o1}if(o2!==c._o2){c._o2=o2;vgEl.style.opacity=o2}};hud(c,vf);SND.drive(c,I,dt,vf,c.vx*nr[0]+c.vz*nr[1],hs)}
 
 /* ---------- РЕЖИМЫ ---------- */
-function dropCar(){if(!car)return;scene.remove(car.root);scene.remove(car.dbg);car=null;PX.clear()}
+function dropCar(){if(!car)return;(scene.remove(car.root),mDisp(car.root));scene.remove(car.dbg);car=null;PX.clear()}
 function setMode(m){SND.music(m=='drive'?'race':'garage');if(m=='drive'){dropCar();if(!startDrive()){SND.music('garage');return}MP.sendCar()}else if(car){SND.stop();SPD.off();fxEl.style.opacity=0;vgEl.style.opacity=0;dropCar();MP.idle()}
  mode=m;const d=m=='drive',cr=!!(CR&&CR.on);app.dataset.m=m;world.visible=d&&!cr&&!SBC;if(CR)CR.G.visible=d&&(cr||SBC);editG.visible=!d;$('edit').style.display=d?'none':'flex';$('hud').style.display=d?'block':'none';$('info').style.display=d?'none':'block';
  $('mE').classList.toggle('on',!d);$('mD').classList.toggle('on',d);
@@ -3709,10 +3713,10 @@ CR=(()=>{
   const s=stats();if(!s.w){toast(Lc('Нет колёс! Собери машину'));return}if(!s.e){toast(Lc('Нужен мотор — купи в магазине и поставь'));return}
   CITY.leave();cityVis(false);keep();tune();lvI=i;const tr=buildTrack(lv);sIdx=-1;race={lv,tr,lap:0,t:0,lt:0,best:0,laps:[],cp:1,idx:0,cd:3.2,done:false,wrong:0,ck:{i:0},rec:[],rt:0,spl:[],dl:null,gdt:tr.len>2500?.2:.1,ai:lv.lg>=2&&!!S.opt.ai,prog:0};mapOn(tr);wgClear();if(!race.ai)wgFetch(lv);aiStart(tr,lv);if(race.ai&&race.grid){race.idx=race.grid.i;race.prog=-race.grid.d}
   gar.classList.remove('open');document.body.classList.remove('gopen');res.classList.remove('open');setMode('drive');if(!car){race=null;garage('race');return}
-  const tyr=TYR[S.up.y].g;car.grip*=tyr;respawn();if(race.ai){if(ghost){G0.remove(ghost);ghost=null}aiAdapt()}else ghostBuild(race&&S.ghost[gk()]);SND.ui('ok')}
+  const tyr=TYR[S.up.y].g;car.grip*=tyr;respawn();if(race.ai){if(ghost){(G0.remove(ghost),mDisp(ghost));ghost=null}aiAdapt()}else ghostBuild(race&&S.ghost[gk()]);SND.ui('ok')}
  /* ---- Большой город: свободная езда и задания ---- */
  function startCity(){const s=stats();if(!s.w){toast(Lc('Нет колёс! Собери машину'));return}if(!s.e){toast(Lc('Нужен мотор — купи в магазине и поставь'));return}
-  keep();tune();if(ghost){G0.remove(ghost);ghost=null}aiClear();mapOn(null);race=null;hudLap.style.display='none';cityVis(true);CITY.enter();
+  keep();tune();if(ghost){(G0.remove(ghost),mDisp(ghost));ghost=null}aiClear();mapOn(null);race=null;hudLap.style.display='none';cityVis(true);CITY.enter();
   gar.classList.remove('open');document.body.classList.remove('gopen');res.classList.remove('open');setMode('drive');if(!car){CITY.leave();cityVis(false);garage('race');return}
   car.grip*=TYR[S.up.y].g;respawn();SND.ui('ok');toast('🏙️ '+Lc('Большой город: подъезжай к цветным лучам — это задания'))}
  /* ---- призрак лучшего круга ---- */
@@ -3722,12 +3726,12 @@ CR=(()=>{
  /* призрак: хранит СВОЮ машину (снимок блоков на момент рекорда), крутит и поворачивает колёса, тает когда к нему приближаешься */
  const gLift=bl=>{let l=1e9;const wb=bl.filter(k=>k.t=='w');if(wb.length)wb.forEach(k=>l=Math.min(l,k.y+Math.min(0,.5-(k.r||.5))));else bl.forEach(k=>l=Math.min(l,k.y));return l==1e9?0:l};
  function gSnap(){try{return JSON.parse(JSON.stringify(carPack('')))}catch(e){return null}}
- function ghostBuild(rec){if(ghost){G0.remove(ghost);(ghost.userData.mats||[]).forEach(m=>m.dispose&&m.dispose());ghost=null}if(!race||!S.opt.ghost)return;
+ function ghostBuild(rec){if(ghost){(G0.remove(ghost),mDisp(ghost));(ghost.userData.mats||[]).forEach(m=>m.dispose&&m.dispose());ghost=null}if(!race||!S.opt.ghost)return;
   try{let bl=blocks,clr=cfg.clr;if(rec&&rec.car){try{const r=carUnpack(JSON.parse(JSON.stringify(rec.car)));if(r.blocks.length){bl=r.blocks;clr=r.cfg&&r.cfg.clr!=null?r.cfg.clr:clr}}catch(e){}}
    const sv=cfg.clr;cfg.clr=clr;let bc;try{bc=buildCar(bl)}finally{cfg.clr=sv}
    let a=1e9,b=-1e9,c=1e9,d=-1e9;bl.forEach(k=>{const q=k.t=='w'?[k.x-.5,k.x+.5,0,0,k.z-.5,k.z+.5]:BB(k);a=Math.min(a,q[0]);b=Math.max(b,q[1]);c=Math.min(c,q[4]);d=Math.max(d,q[5])});
    bc.g.position.set(-(a+b)/2,-gLift(bl),-(c+d)/2);const mc=new Map(),mats=[];bc.g.traverse(o=>{if(o.isMesh&&o.material&&o.material!==PM){let m=mc.get(o.material);if(!m){m=o.material.clone();m.transparent=true;m.opacity=.32;m.depthWrite=false;m.color&&m.color.lerp&&m.color.lerp(new T.Color(0x7fd4ff),.55);mc.set(o.material,m);mats.push(m)}o.material=m;o.castShadow=false}});
-   bc.fl.forEach(f=>{if(f)f.visible=false});const wz=bc.ws.map(w=>w.userData.b.z),zc=wz.length?wz.reduce((x,y)=>x+y,0)/wz.length:0;bc.ws.forEach(w=>{w.userData.front=w.userData.b.z>zc+.01});
+   bc.fl.forEach(f=>{if(f)f.visible=false});carMerge(bc.g,bc.ws);const wz=bc.ws.map(w=>w.userData.b.z),zc=wz.length?wz.reduce((x,y)=>x+y,0)/wz.length:0;bc.ws.forEach(w=>{w.userData.front=w.userData.b.z>zc+.01});
    const r=new T.Group();r.rotation.order='YXZ';r.add(bc.g);r.visible=false;
    /* метка над призраком: видна сквозь всё, когда он далеко */
    let mk=null;try{const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d');if(x){x.fillStyle='rgba(20,60,90,.85)';x.beginPath();x.arc(64,56,46,0,7);x.fill();x.strokeStyle='#7fd4ff';x.lineWidth=7;x.stroke();x.beginPath();x.moveTo(44,96);x.lineTo(84,96);x.lineTo(64,124);x.fill();x.font='54px system-ui';x.textAlign='center';x.textBaseline='middle';x.fillText('👻',64,58)}
@@ -3750,7 +3754,7 @@ CR=(()=>{
  /* ===== ПРИЗРАКИ ИГРОКОВ: топ-3 лучших кругов всех игроков на трассе (🥇🥈🥉), с их машинами =====
     Свой лучший круг (без соперников ИИ) отправляется на сервер, если ты вошёл в аккаунт. Если твоё время в топ-3 — ты тоже среди них. */
  const WGC=[0xffd23a,0xdfe6ee,0xd08a4a],WGE=['🥇','🥈','🥉'];let wgL=[],wgKey='',wgTop={},wgBoard=null,wgBoardT=0;
- function wgClear(){wgL.forEach(r=>{G0.remove(r);(r.userData.mats||[]).forEach(m=>m.dispose&&m.dispose())});wgL=[];wgKey=''}
+ function wgClear(){wgL.forEach(r=>{(G0.remove(r),mDisp(r));(r.userData.mats||[]).forEach(m=>m.dispose&&m.dispose())});wgL=[];wgKey=''}
  async function wgFetch(lv){wgTop={};if(!MP.api||S.opt.wg===0)return;const ks=[lv.id,lv.id+'#1'];try{const r=await MP.api('gtop',{tracks:ks});if(r&&r.top&&race&&race.lv===lv){for(const k of ks)wgTop[k]=(r.top[k]||[]).map(x=>{try{return{nick:x.nick,t:x.t,g:JSON.parse(x.data)}}catch(e){return null}}).filter(x=>x&&x.g&&Array.isArray(x.g.f));wgKey=''}}catch(e){}}
  function wgUp(id,g){if(!MP.token||!g||!g.f)return;const d=JSON.stringify(g);if(d.length>235000)return;MP.api('gput',{track:id,t:g.t,data:d}).then(r=>{if(r&&r.ok){S.gup=S.gup||{};S.gup[id]=g.t;save(1);if(r.rank&&r.rank<=3&&!/#1$/.test(id))toast('🌍 '+WGE[r.rank-1]+' '+Lc('Твой круг в топ-3 игроков!'))}}).catch(()=>{})}
  // отправить ещё не отправленные рекорды (например, поставленные до входа в аккаунт)
@@ -3761,7 +3765,7 @@ CR=(()=>{
   let a=1e9,b=-1e9,c=1e9,d=-1e9;bl.forEach(q=>{const z=q.t=='w'?[q.x-.5,q.x+.5,0,0,q.z-.5,q.z+.5]:BB(q);a=Math.min(a,z[0]);b=Math.max(b,z[1]);c=Math.min(c,z[4]);d=Math.max(d,z[5])});
   bc.g.position.set(-(a+b)/2,-gLift(bl),-(c+d)/2);const tint=new T.Color(WGC[k]),mc=new Map(),mats=[];
   bc.g.traverse(o=>{if(o.isMesh&&o.material&&o.material!==PM){let m=mc.get(o.material);if(!m){m=o.material.clone();m.transparent=true;m.opacity=.32;m.depthWrite=false;m.color&&m.color.lerp&&m.color.lerp(tint,.6);mc.set(o.material,m);mats.push(m)}o.material=m;o.castShadow=false}});
-  bc.fl.forEach(f=>{if(f)f.visible=false});const wz=bc.ws.map(w=>w.userData.b.z),zc=wz.length?wz.reduce((x,y)=>x+y,0)/wz.length:0;bc.ws.forEach(w=>{w.userData.front=w.userData.b.z>zc+.01});
+  bc.fl.forEach(f=>{if(f)f.visible=false});carMerge(bc.g,bc.ws);const wz=bc.ws.map(w=>w.userData.b.z),zc=wz.length?wz.reduce((x,y)=>x+y,0)/wz.length:0;bc.ws.forEach(w=>{w.userData.front=w.userData.b.z>zc+.01});
   const r=new T.Group();r.rotation.order='YXZ';r.add(bc.g);r.visible=false;let mk=null;
   try{const me=MP.nick&&e.nick.toLowerCase()==String(MP.nick).toLowerCase(),txt=WGE[k]+' '+e.nick+(me?' ('+Lc('ты')+')':'')+' · '+fmt(e.t),cv=document.createElement('canvas'),x=cv.getContext('2d');x.font='700 30px system-ui,sans-serif';const W=Math.ceil(x.measureText(txt).width)+44,H=54;cv.width=W*2;cv.height=H*2;x.scale(2,2);
    x.beginPath();x.roundRect?x.roundRect(1,1,W-2,H-2,14):x.rect(1,1,W-2,H-2);x.fillStyle='rgba(12,16,26,.88)';x.fill();x.lineWidth=3;x.strokeStyle='#'+WGC[k].toString(16).padStart(6,'0');x.stroke();x.font='700 30px system-ui,sans-serif';x.fillStyle='#fff';x.textBaseline='middle';x.fillText(txt,22,H/2+1);
@@ -4011,7 +4015,7 @@ CR=(()=>{
    <div class="rbtn"><button id="crAgain">↺ ${Lc('Ещё раз')}</button>${CTRK.LV[idx+1]&&!locked(idx+1)?`<button id="crNext" class="pri">${Lc('Следующая трасса')} ▶</button>`:''}<button id="crGar">🏠 ${Lc('В гараж')}</button></div></div>`;
   res.classList.add('open');SND.ui('ok');hudLap.style.display='none';
   $('crAgain').onclick=()=>start(idx);$('crGar').onclick=()=>toGarage();const nx=$('crNext');if(nx)nx.onclick=()=>start(idx+1)}
- function toGarage(){mapOn(null);aiClear();wgClear();CITY.leave();cityVis(false);if(ghost){G0.remove(ghost);ghost=null}race=null;res.classList.remove('open');hudLap.style.display='none';cdEl.classList.remove('on');if(car)setMode('edit');garage('race')}
+ function toGarage(){mapOn(null);aiClear();wgClear();CITY.leave();cityVis(false);if(ghost){(G0.remove(ghost),mDisp(ghost));ghost=null}race=null;res.classList.remove('open');hudLap.style.display='none';cdEl.classList.remove('on');if(car)setMode('edit');garage('race')}
  /* ---- ОБЛАЧНОЕ СОХРАНЕНИЕ (аккаунт мультиплеера) ---- */
  const CL={st:'',t:0,tm:0,busy:false,
   label(){const tok=MP.token;if(!tok)return '☁ '+Lc('Войти — облако');if(this.st=='busy')return '☁ ⟳';if(this.st=='err')return '☁ ⚠';return '☁ '+(this.t?new Date(this.t).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):Lc('Облако'))},
