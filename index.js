@@ -9,7 +9,8 @@ const enc = new TextEncoder();
 const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 const rnd = n => hex(crypto.getRandomValues(new Uint8Array(n)));
 const NICK_RE = /^[A-Za-z0-9_\-Ѐ-ӿ]{3,16}$/;
-const MAX_PLAYERS = 16, MAX_CAR = 60000, SESSION_DAYS = 30;
+const MAX_PLAYERS = 16, MAX_CAR = 60000, SESSION_DAYS = 30, INACTIVE_DAYS = 60, MAX_GHOST = 240000;
+const GKEY = /^l\d{1,3}(#1)?$/;
 
 async function pbkdf2(pw, saltHex, iter = 100000) {
   const key = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
@@ -26,7 +27,7 @@ export default {
     if (req.method == 'OPTIONS') return new Response(null, { headers: CORS });
     if (url.pathname.startsWith('/api/')) {
       const op = url.pathname.slice(5);
-      if (!['register', 'login', 'logout', 'me', 'rooms', 'create', 'joincheck', 'save', 'load'].includes(op)) return J({ error: 'not_found' }, 404);
+      if (!['register', 'login', 'logout', 'me', 'rooms', 'create', 'joincheck', 'save', 'load', 'gput', 'gtop', 'gboard'].includes(op)) return J({ error: 'not_found' }, 404);
       let body = {}; if (req.method == 'POST') { try { body = await req.json() } catch (e) { return J({ error: 'bad_json' }, 400) } }
       body.ip = req.headers.get('cf-connecting-ip') || '';
       const r = await hubCall(env, op, body);
@@ -41,7 +42,7 @@ export default {
       const h = new Headers(req.headers); h.set('x-nick', encodeURIComponent(chk.nick)); h.set('x-room', room);
       return stub.fetch(new Request('https://room/ws', { headers: h }));
     }
-    if (url.pathname == '/' || url.pathname == '/index.html') return new Response(GAME, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+    if (url.pathname == '/' || url.pathname == '/index.html') return new Response(GAME, { headers: { 'content-type': 'text/html; charset=utf-8', 'permissions-policy': 'accelerometer=(self), gyroscope=(self), magnetometer=(self)' } });
     return new Response('Not found', { status: 404 });
   }
 };
@@ -54,9 +55,22 @@ export class Hub {
     sql.exec('CREATE TABLE IF NOT EXISTS rooms(id TEXT PRIMARY KEY, name TEXT, host TEXT, pws TEXT, pwh TEXT, n INTEGER, created INTEGER)');
     sql.exec('CREATE TABLE IF NOT EXISTS fails(k TEXT, t INTEGER)');
     sql.exec('CREATE TABLE IF NOT EXISTS saves(nick TEXT PRIMARY KEY COLLATE NOCASE, data TEXT, t INTEGER)');
+    // призраки игроков: лучший круг каждого игрока на каждой трассе (храним до 10 лучших на трассу)
+    sql.exec('CREATE TABLE IF NOT EXISTS ghosts(track TEXT, nick TEXT COLLATE NOCASE, t REAL, data TEXT, at INTEGER, PRIMARY KEY(track, nick))');
+    try { sql.exec('ALTER TABLE users ADD COLUMN seen INTEGER') } catch (e) { }   // последний вход/активность
+    sql.exec('UPDATE users SET seen=? WHERE seen IS NULL', Date.now());   // старые аккаунты: отсчёт 60 дней начинается с обновления сервера
+    // ежедневная уборка: аккаунты без входа 60 дней удаляются вместе с сохранением и призраками
+    ctx.blockConcurrencyWhile(async () => { if (!(await ctx.storage.getAlarm())) await ctx.storage.setAlarm(Date.now() + 60000); });
   }
+  async alarm() { try { this.cleanup() } finally { await this.ctx.storage.setAlarm(Date.now() + 864e5) } }
+  cleanup() {
+    const lim = Date.now() - INACTIVE_DAYS * 864e5, old = this.q('SELECT nick FROM users WHERE COALESCE(seen, created) < ?', lim);
+    for (const u of old) { this.q('DELETE FROM sessions WHERE nick=?', u.nick); this.q('DELETE FROM saves WHERE nick=?', u.nick); this.q('DELETE FROM ghosts WHERE nick=?', u.nick); this.q('DELETE FROM users WHERE nick=?', u.nick); }
+    this.q('DELETE FROM sessions WHERE exp<?', Date.now()); return old.length;
+  }
+  touch(nick) { if (!nick) return; const t = Date.now(); if (this._tc && this._tc[nick] > t - 3600e3) return; (this._tc = this._tc || {})[nick] = t; this.q('UPDATE users SET seen=? WHERE nick=?', t, nick); }
   q(s, ...a) { return this.ctx.storage.sql.exec(s, ...a).toArray(); }
-  nickOf(token) { if (typeof token != 'string' || token.length != 64) return null; const r = this.q('SELECT nick,exp FROM sessions WHERE token=?', token)[0]; if (!r || r.exp < Date.now()) return null; return r.nick; }
+  nickOf(token) { if (typeof token != 'string' || token.length != 64) return null; const r = this.q('SELECT nick,exp FROM sessions WHERE token=?', token)[0]; if (!r || r.exp < Date.now()) return null; this.touch(r.nick); return r.nick; }
   limited(k) { const t = Date.now(); this.q('DELETE FROM fails WHERE t<?', t - 600000); return this.q('SELECT COUNT(*) AS c FROM fails WHERE k=?', k)[0].c >= 8; }
   fail(k) { this.q('INSERT INTO fails VALUES(?,?)', k, Date.now()); }
   async fetch(req) {
@@ -80,7 +94,8 @@ export class Hub {
     if (pw.length < 4 || pw.length > 64) return { error: 'bad_password' };
     if (this.limited('ip:' + b.ip)) return { error: 'too_many' };
     if (this.q('SELECT 1 FROM users WHERE nick=?', nick).length) { this.fail('ip:' + b.ip); return { error: 'nick_taken' }; }
-    const salt = rnd(16); this.q('INSERT INTO users VALUES(?,?,?,?)', nick, salt, await pbkdf2(pw, salt), Date.now());
+    if (b.password2 !== undefined && String(b.password2) !== pw) return { error: 'pw_mismatch' };
+    const salt = rnd(16); this.q('INSERT INTO users(nick,salt,hash,created,seen) VALUES(?,?,?,?,?)', nick, salt, await pbkdf2(pw, salt), Date.now(), Date.now());
     return this.login(b);
   }
   async login(b) {
@@ -88,9 +103,29 @@ export class Hub {
     if (this.limited('n:' + nick.toLowerCase())) return { error: 'too_many' };
     const u = this.q('SELECT nick,salt,hash FROM users WHERE nick=?', nick)[0];
     if (!u || !same(await pbkdf2(pw, u.salt), u.hash)) { this.fail('n:' + nick.toLowerCase()); return { error: 'bad_login' }; }
-    const token = rnd(32); this.q('DELETE FROM sessions WHERE exp<?', Date.now());
+    const token = rnd(32); this.q('DELETE FROM sessions WHERE exp<?', Date.now()); this.q('UPDATE users SET seen=? WHERE nick=?', Date.now(), u.nick);
     this.q('INSERT INTO sessions VALUES(?,?,?)', token, u.nick, Date.now() + SESSION_DAYS * 864e5);
     return { ok: 1, token, nick: u.nick };
+  }
+  // ---- призраки: отправить свой лучший круг / получить топ-3 / таблица лидеров по всем трассам ----
+  async gput(b) {
+    const nick = this.nickOf(b.token); if (!nick) return { error: 'auth' };
+    const track = String(b.track || ''), t = +b.t, d = String(b.data || '');
+    if (!GKEY.test(track) || !(t > 5 && t < 3600) || !d.startsWith('{') || d.length > MAX_GHOST) return { error: 'bad_ghost' };
+    const cur = this.q('SELECT t FROM ghosts WHERE track=? AND nick=?', track, nick)[0];
+    if (cur && cur.t <= t) return { ok: 1, kept: 1 };
+    this.q('INSERT OR REPLACE INTO ghosts VALUES(?,?,?,?,?)', track, nick, t, d, Date.now());
+    this.q('DELETE FROM ghosts WHERE track=? AND nick NOT IN (SELECT nick FROM ghosts WHERE track=? ORDER BY t ASC LIMIT 10)', track, track);
+    const rank = this.q('SELECT COUNT(*) AS c FROM ghosts WHERE track=? AND t<?', track, t)[0].c + 1; return { ok: 1, rank };
+  }
+  async gtop(b) {
+    const keys = (Array.isArray(b.tracks) ? b.tracks : [b.track]).map(String).filter(k => GKEY.test(k)).slice(0, 4); const out = {};
+    for (const k of keys) out[k] = this.q('SELECT nick,t,data FROM ghosts WHERE track=? ORDER BY t ASC LIMIT 3', k);
+    return { ok: 1, top: out };
+  }
+  async gboard(b) {
+    const rows = this.q("SELECT track,nick,t FROM ghosts g WHERE track NOT LIKE '%#1' AND (SELECT COUNT(*) FROM ghosts h WHERE h.track=g.track AND h.t<g.t) < 3 ORDER BY track,t");
+    const out = {}; for (const r of rows) (out[r.track] = out[r.track] || []).push({ nick: r.nick, t: r.t }); return { ok: 1, board: out };
   }
   async logout(b) { this.q('DELETE FROM sessions WHERE token=?', String(b.token || '')); return { ok: 1 }; }
   async me(b) { const n = this.nickOf(b.token); return n ? { ok: 1, nick: n } : { error: 'auth' }; }
